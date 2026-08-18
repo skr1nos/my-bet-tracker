@@ -66,10 +66,9 @@ def init_gsheets():
     # Εάν τρέχει τοπικά, διαβάζει το αρχείο που κατέβασες. Εάν είναι στο Cloud, διαβάζει το μυστικό κλειδί.
     if os.path.exists('google_credentials.json'):
         creds = ServiceAccountCredentials.from_json_keyfile_name('google_credentials.json', scope)
-    else:
-        creds_dict = dict(st.secrets["gcp_service_account"])
+  else:
+        creds_dict = json.loads(st.secrets["google_json"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        
     client = gspread.authorize(creds)
     sheet = client.open('Betting History Database').sheet1
     return sheet
