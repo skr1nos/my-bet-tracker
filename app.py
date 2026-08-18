@@ -18,7 +18,6 @@ try:
 except:
     pass 
 
-# ΑΛΛΑΓΗ: Δεν διαβάζουμε πια τοπικό CSV, αλλά Google Sheets!
 EXPECTED_COLS = ['Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Status', 'Profit', 'Legs_Data']
 DISPLAY_ORDER = ['Α/Α', 'Status', 'Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Profit']
 
@@ -63,12 +62,12 @@ if st.session_state['show_toast']:
 @st.cache_resource
 def init_gsheets():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    # Εάν τρέχει τοπικά, διαβάζει το αρχείο που κατέβασες. Εάν είναι στο Cloud, διαβάζει το μυστικό κλειδί.
     if os.path.exists('google_credentials.json'):
         creds = ServiceAccountCredentials.from_json_keyfile_name('google_credentials.json', scope)
-  else:
+    else:
         creds_dict = json.loads(st.secrets["google_json"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        
     client = gspread.authorize(creds)
     sheet = client.open('Betting History Database').sheet1
     return sheet
@@ -82,14 +81,13 @@ def fetch_gsheets():
 def save_data(df_to_save):
     sheet = init_gsheets()
     sheet.clear()
-    df_to_save = df_to_save[EXPECTED_COLS] # Σιγουρευόμαστε ότι το Α/Α δεν ανεβαίνει
+    df_to_save = df_to_save[EXPECTED_COLS]
     set_with_dataframe(sheet, df_to_save)
-    fetch_gsheets.clear() # Καθαρίζει τη μνήμη για να φέρει τα νέα δεδομένα στην επόμενη ανανέωση
+    fetch_gsheets.clear() 
 
 def load_data():
     df = fetch_gsheets()
     
-    # Αυτόματη Μεταφορά Δεδομένων (Από το CSV στο Google Sheets!)
     if df.empty:
         if os.path.exists('betting_history.csv') and os.stat('betting_history.csv').st_size > 0:
             df = pd.read_csv('betting_history.csv')
@@ -130,7 +128,6 @@ df = load_data()
 df = df.sort_values(by=["Date", "Time"]).reset_index(drop=True)
 df.insert(0, 'Α/Α', range(1, len(df) + 1))
 
-# --- Autocomplete ---
 all_events_set = set()
 all_markets_set = set()
 for ev in df['Event'].dropna():
@@ -166,9 +163,6 @@ GREEK_COLUMNS = {
     "Profit": st.column_config.NumberColumn("Κέρδος / Ζημιά", format="%.2f €")
 }
 
-# ==========================================
-# 📱 ΜΕΝΟΥ ΠΛΟΗΓΗΣΗΣ (SIDEBAR)
-# ==========================================
 st.sidebar.title("🗂️ Μενού Εφαρμογής")
 
 if st.sidebar.button("➕ Νέο Στοίχημα", type="primary", use_container_width=True):
@@ -207,9 +201,6 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 
 st.title("📈 Στοιχηματικό Dashboard")
 
-# ==========================================
-# ➕ ΦΟΡΜΑ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ
-# ==========================================
 if st.session_state['show_new_bet_modal']:
     with st.container(border=True):
         col_t, col_btn = st.columns([0.9, 0.1])
@@ -240,7 +231,7 @@ if st.session_state['show_new_bet_modal']:
             st.markdown("---")
             
             if bet_type == "Μονό":
-                st.markdown("**2. Αγώνας & Αγορά**")
+                st.markdown("**2. Αγώνας & Αγορά (Με μνήμη Ιστορικού)**")
                 c_ev, c_ma = st.columns(2)
                 
                 ev_choice = c_ev.selectbox("Αγώνας", ["✍️ Νέα Καταχώρηση..."] + all_events, key=f"ev_choice_single_{reset_id}")
@@ -317,7 +308,6 @@ if st.session_state['show_new_bet_modal']:
                        'Status': status, 'Profit': profit, 'Legs_Data': legs_json
                    }])
                    
-                   # Προσθήκη του νέου στοιχείου στο κεντρικό DataFrame και Save!
                    df_to_save = pd.concat([df.drop(columns=['Α/Α'], errors='ignore'), new_data], ignore_index=True)
                    save_data(df_to_save)
                    
@@ -331,10 +321,6 @@ if st.session_state['show_new_bet_modal']:
                 st.rerun()
     st.markdown("<br><hr>", unsafe_allow_html=True)
 
-
-# ==========================================
-# 🏠 ΣΕΛΙΔΑ 1: ΑΡΧΙΚΗ & ΣΤΑΤΙΣΤΙΚΑ
-# ==========================================
 if page == "🏠 Αρχική & Στατιστικά":
     st.header("🏠 Στατιστικά & Αναλύσεις")
     if filtered_df.empty:
@@ -472,9 +458,6 @@ if page == "🏠 Αρχική & Στατιστικά":
             else:
                 st.info("Δεν υπάρχουν δεδομένα.")
 
-# ==========================================
-# ⏳ ΣΕΛΙΔΑ 2: ΕΚΚΡΕΜΗ
-# ==========================================
 elif page == "⏳ Εκκρεμή":
     st.header("⏳ Εκκρεμή Στοιχήματα")
     st.info("💡 Άλλαξε την 'Κατάσταση' και πάτα Αποθήκευση για να τα διευθετήσεις.")
@@ -543,9 +526,6 @@ elif page == "⏳ Εκκρεμή":
             st.session_state['toast_message'] = "Το Cash Out καταχωρήθηκε επιτυχώς!"
             st.rerun()
 
-# ==========================================
-# 📋 ΣΕΛΙΔΑ 3: ΙΣΤΟΡΙΚΟ
-# ==========================================
 elif page == "📋 Ιστορικό ανά Μήνα":
     st.header("📋 Ιστορικό ανά Μήνα")
     if filtered_df.empty:
@@ -585,9 +565,6 @@ elif page == "📋 Ιστορικό ανά Μήνα":
                 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-# ==========================================
-# ✏️ ΣΕΛΙΔΑ 4: ΕΠΕΞΕΡΓΑΣΙΑ
-# ==========================================
 elif page == "✏️ Επεξεργασία & Διαγραφή":
     st.header("✏️ Επεξεργασία & Διαγραφή")
     
