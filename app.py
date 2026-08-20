@@ -580,12 +580,13 @@ else:
                     }])
                     df_line = pd.concat([zero_point, df_line], ignore_index=True)
                     
+                    # ΝΕΟ: interpolate='monotone' για απαλές καμπύλες!
                     base = alt.Chart(df_line).encode(
                         x=alt.X('Bet_Count:Q', axis=alt.Axis(labels=False, title=None, ticks=False, grid=False)),
                         y=alt.Y('Bankroll:Q', title="Ταμείο (€)", axis=alt.Axis(gridColor="#1f2937"))
                     )
                     
-                    line = base.mark_line(color="#4db8ff", strokeWidth=3, point=True)
+                    line = base.mark_line(color="#4db8ff", strokeWidth=3, point=True, interpolate='monotone')
                     
                     hover_points = base.mark_circle(size=500, color="transparent").encode(
                         tooltip=[
