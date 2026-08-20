@@ -9,6 +9,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
+import unicodedata
+import difflib
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -60,24 +62,63 @@ if st.session_state['show_toast']:
     st.session_state['show_toast'] = False 
 
 # ==========================================
-# Έξυπνη Αναζήτηση Παρόμοιων Ονομάτων
+# 🧠 Έξυπνη Αναζήτηση (Τόνοι, Ορθογραφικά, Λέξεις)
 # ==========================================
+def normalize_greek(text):
+    if not text: return ""
+    # Αφαίρεση τόνων και μετατροπή σε πεζά
+    text = ''.join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn')
+    return text.lower().strip()
+
 def get_similar_items(user_text, history_list):
     if not user_text or len(user_text.strip()) < 3:
         return []
     
-    user_lower = user_text.lower()
-    matches = [x for x in history_list if user_lower in x.lower() and x.lower() != user_lower]
+    norm_user = normalize_greek(user_text)
+    scored_items = []
     
-    if not matches:
-        user_words = set(re.findall(r'\w{3,}', user_lower))
-        if user_words:
-            for item in history_list:
-                item_words = set(re.findall(r'\w{3,}', item.lower()))
-                if user_words.intersection(item_words) and item.lower() != user_lower:
-                    matches.append(item)
-                    
-    return list(set(matches))[:3]
+    unique_history = list(set(history_list))
+    
+    # Λέξεις που αγνοούμε κατά τη σύγκριση για να μην μπερδεύεται
+    ignore_words = {'over', 'under', 'ov', 'un', 'points', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'και', '1', '2', 'x', 'χ', 'g/g', 'ng'}
+    
+    for item in unique_history:
+        if not item: continue
+        norm_item = normalize_greek(item)
+        
+        # Αν είναι ήδη τέλειο match, δεν χρειάζεται πρόταση
+        if norm_user == norm_item:
+            continue
+            
+        score = 0.0
+        
+        # Περίπτωση 1: Ο χρήστης γράφει κάτι που περιέχεται αυτούσιο (π.χ. γράφει 'ολυμπ' και βρίσκει 'ολυμπιακος')
+        if norm_user in norm_item:
+            score = 0.95
+        else:
+            # Περίπτωση 2: Ορθογραφικά λάθη. Το SequenceMatcher βρίσκει τη συγγένεια λέξεων (π.χ. ολθμπιακος -> ολυμπιακος)
+            score = difflib.SequenceMatcher(None, norm_user, norm_item).ratio()
+            
+            # Κόλπο: Διαχωρίζουμε τα ονόματα παικτών/ομάδων από το "over/under"
+            user_words = set(norm_user.split())
+            item_words = set(norm_item.split())
+            
+            meaningful_user_words = user_words - ignore_words
+            meaningful_item_words = item_words - ignore_words
+            
+            # Αν έχουν την ίδια κύρια λέξη (π.χ. το ίδιο όνομα παίκτη), δίνουμε τεράστιο μπόνους!
+            if meaningful_user_words.intersection(meaningful_item_words):
+                score += 0.25
+
+        # Κρατάμε όσα σκοράρουν πάνω από 0.55
+        if score > 0.55:
+            scored_items.append((item, score))
+            
+    # Ταξινομούμε με το μεγαλύτερο σκορ πρώτο
+    scored_items.sort(key=lambda x: x[1], reverse=True)
+    
+    # Επιστρέφουμε τα 3 κορυφαία
+    return [item[0] for item in scored_items][:3]
 
 # ==========================================
 # ☁️ ΣΥΝΔΕΣΗ ΜΕ GOOGLE SHEETS
@@ -224,7 +265,6 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 
 st.title("📈 Στοιχηματικό Dashboard")
 
-# Αν είναι ανοιχτή η φόρμα, δείξε ΜΟΝΟ τη φόρμα
 if st.session_state['show_new_bet_modal']:
     with st.container(border=True):
         col_t, col_btn = st.columns([0.9, 0.1])
@@ -367,7 +407,6 @@ if st.session_state['show_new_bet_modal']:
                 
             st.rerun()
 
-# Αλλιώς, αν Η ΦΟΡΜΑ ΕΙΝΑΙ ΚΛΕΙΣΤΗ, δείξε το περιεχόμενο της επιλεγμένης σελίδας
 else:
     if page == "🏠 Αρχική & Στατιστικά":
         st.header("🏠 Στατιστικά & Αναλύσεις")
