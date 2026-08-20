@@ -64,108 +64,118 @@ if st.session_state['show_toast']:
     st.session_state['show_toast'] = False 
 
 # ==========================================
-# 🧠 Έξυπνη Αναζήτηση (Σύνθεση Ονομάτων & Ορθογραφικά)
+# 🧠 AI-Like Έξυπνη Αναζήτηση & Διόρθωση 
 # ==========================================
 def normalize_greek(text):
     if not text: return ""
-    # Αφαίρεση τόνων και μετατροπή σε πεζά
     text = ''.join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn')
     return text.lower().strip()
 
-def get_similar_items(user_text, history_list):
-    if not user_text or len(user_text.strip()) < 3:
-        return []
-    
+def find_team_match(t, norm_teams_dict):
+    """Βρίσκει την καλύτερη αντιστοιχία ομάδας."""
+    # 1. Ψάχνει για κοντινό ορθογραφικό
+    m = difflib.get_close_matches(t, norm_teams_dict.keys(), n=1, cutoff=0.65)
+    if m: return norm_teams_dict[m[0]]
+    # 2. Ψάχνει αν το κείμενο είναι τμήμα της κανονικής λέξης (π.χ. "Λίμπερτι" -> "Νιου Γιορκ Λίμπερτι")
+    for kt in norm_teams_dict.keys():
+        if t in kt and len(t) >= 4:
+            return norm_teams_dict[kt]
+    return t
+
+def get_event_suggestions(user_text, all_events, all_teams):
+    if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
-    ignore_words = {'over', 'under', 'ov', 'un', 'points', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'και', '1', '2', 'x', 'χ', 'g/g', 'ng'}
     
-    # 1. Δημιουργία του "Λεξιλογίου" από το ιστορικό
-    known_parts = set()
-    known_words = set()
-    for item in history_list:
-        if not item: continue
-        known_parts.add(item.strip())
+    # Αν υπάρχει ήδη αυτούσιο, μην προτείνεις τίποτα
+    if norm_user in [normalize_greek(e) for e in all_events]:
+        return []
         
-        # Εξαγωγή ομάδων (από την παύλα ή το vs)
-        for delim in [' - ', ' vs ', '-', '/']:
-            if delim in item:
-                for p in item.split(delim):
-                    if len(p.strip()) > 2:
-                        known_parts.add(p.strip())
-                        
-        # Εξαγωγή μεμονωμένων λέξεων για αγορές (παίκτες κλπ)
-        for w in str(item).split():
-            if len(w.strip()) > 2:
-                known_words.add(w.strip())
-
-    def correct_text(text, knowledge_set, threshold=0.65):
-        norm_t = normalize_greek(text)
-        best_match = text
-        best_score = 0.0
-        for k in knowledge_set:
-            norm_k = normalize_greek(k)
-            if norm_t == norm_k: return k # Τέλειο (αγνοώντας τόνους)
-            score = difflib.SequenceMatcher(None, norm_t, norm_k).ratio()
-            if score > best_score:
-                best_score = score
-                best_match = k
-        return best_match if best_score > threshold else text
-
-    suggested_strings = []
+    suggestions = []
     
-    # ΜΕΘΟΔΟΣ Α: Διόρθωση ανά Ομάδα (αν ο χρήστης έβαλε παύλα)
+    # 1. Αν γράφει αγώνα με παύλα (ζευγάρι)
     delim_found = False
     for delim in [' - ', ' vs ', '-']:
         if delim in user_text:
             delim_found = True
             parts = user_text.split(delim)
-            # Διορθώνει κάθε ομάδα ξεχωριστά!
-            corrected_parts = [correct_text(p.strip(), known_parts, 0.65) for p in parts]
-            composed = f" {delim.strip()} ".join(corrected_parts).strip()
-            if normalize_greek(composed) != norm_user:
-                suggested_strings.append(composed)
+            if len(parts) == 2:
+                t1, t2 = parts[0].strip(), parts[1].strip()
+                nt1, nt2 = normalize_greek(t1), normalize_greek(t2)
+                
+                norm_teams_dict = {normalize_greek(t): t for t in all_teams}
+                
+                final_t1 = find_team_match(nt1, norm_teams_dict) if nt1 else t1
+                final_t2 = find_team_match(nt2, norm_teams_dict) if nt2 else t2
+                
+                if final_t1 != t1 or final_t2 != t2:
+                    suggestions.append(f"{final_t1} {delim.strip()} {final_t2}")
             break
             
-    # ΜΕΘΟΔΟΣ Β: Διόρθωση λέξη προς λέξη (Ειδικά για αγορές π.χ. "Σλοθκας over")
-    if not delim_found:
-        words = user_text.split()
-        corrected_words = []
-        for w in words:
-            # Αγνοούμε τους αριθμούς (π.χ. 15.5) και τις λέξεις (over/under)
-            if normalize_greek(w) in ignore_words or re.match(r'^[\d\.]+$', w):
-                corrected_words.append(w)
-            else:
-                corrected_words.append(correct_text(w, known_words, 0.75))
-        composed_words = " ".join(corrected_words)
-        if normalize_greek(composed_words) != norm_user and composed_words not in suggested_strings:
-            suggested_strings.append(composed_words)
+    # 2. Αν δεν είναι ζευγάρι ή δεν βρέθηκε, ψάξε αυστηρά (cutoff=0.75) σε όλο το ιστορικό
+    if not suggestions:
+        full_matches = difflib.get_close_matches(norm_user, [normalize_greek(e) for e in all_events], n=2, cutoff=0.75)
+        for fm in full_matches:
+            for ev in all_events:
+                if normalize_greek(ev) == fm:
+                    suggestions.append(ev)
+                    break
+                    
+    return list(dict.fromkeys(suggestions))[:3]
 
-    # ΜΕΘΟΔΟΣ Γ: Κλασική αναζήτηση για ολόκληρο το string (ως δικλείδα ασφαλείας)
-    scored_items = []
-    for item in set(history_list):
-        if not item: continue
-        norm_item = normalize_greek(item)
-        if norm_user == norm_item: continue
+def get_market_suggestions(user_text, all_markets):
+    if len(user_text) < 3: return []
+    norm_user = normalize_greek(user_text)
+    
+    if norm_user in [normalize_greek(m) for m in all_markets]:
+        return []
         
-        score = 0.0
-        if norm_user in norm_item:
-            score = 0.95
+    # 1. Ψάξιμο σε όλη την αγορά (αυστηρό cutoff=0.75)
+    full_matches = difflib.get_close_matches(norm_user, [normalize_greek(m) for m in all_markets], n=2, cutoff=0.75)
+    if full_matches:
+        suggs = []
+        for m in all_markets:
+            if normalize_greek(m) in full_matches:
+                suggs.append(m)
+        return list(dict.fromkeys(suggs))
+        
+    # 2. Ψάξιμο λέξη προς λέξη (π.χ. παίκτης)
+    words = user_text.split()
+    known_words_map = {}
+    for m in all_markets:
+        for w in m.split():
+            if len(w) > 2: known_words_map[normalize_greek(w)] = w
+                
+    ignore_words = {'over', 'under', 'ov', 'un', 'points', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'και', 'g/g'}
+    corrected_words = []
+    changed = False
+    
+    for w in words:
+        nw = normalize_greek(w)
+        if nw in ignore_words or re.match(r'^[\d\.]+$', nw):
+            corrected_words.append(w)
         else:
-            score = difflib.SequenceMatcher(None, norm_user, norm_item).ratio()
-            p_words = set(norm_user.split()) - ignore_words
-            kp_words = set(norm_item.split()) - ignore_words
-            if p_words.intersection(kp_words):
-                score += 0.25
-        if score > 0.55:
-            scored_items.append((item, score))
-            
-    scored_items.sort(key=lambda x: x[1], reverse=True)
-    for item, score in scored_items:
-        if item not in suggested_strings and normalize_greek(item) != norm_user:
-            suggested_strings.append(item)
-            
-    # Επιστροφή των 3 κορυφαίων μοναδικών προτάσεων
-    return list(dict.fromkeys(suggested_strings))[:3]
+            wm = difflib.get_close_matches(nw, known_words_map.keys(), n=1, cutoff=0.75)
+            if wm and wm[0] != nw:
+                corrected_words.append(known_words_map[wm[0]])
+                changed = True
+            else:
+                corrected_words.append(w)
+                
+    if changed:
+        return [" ".join(corrected_words)]
+    return []
+
+def render_suggestions(container, input_key, current_value, sugg_func, args):
+    """Δημιουργεί τα κουμπιά προτάσεων κάτω από τα text_inputs"""
+    if not current_value: return
+    sims = sugg_func(current_value, *args)
+    
+    if sims and current_value not in sims:
+        container.markdown("<div style='color:#a8dadc; font-size:13px; margin-bottom:5px;'>💡 Μήπως εννοείς; (Κλικ για επιλογή)</div>", unsafe_allow_html=True)
+        for sim in sims:
+            def update_val(k=input_key, v=sim):
+                st.session_state[k] = v
+            container.button(sim, key=f"btn_sugg_{input_key}_{sim}", on_click=update_val, use_container_width=True)
 
 # ==========================================
 # ☁️ ΣΥΝΔΕΣΗ ΜΕ GOOGLE SHEETS
@@ -248,6 +258,20 @@ for ma in df['Market'].dropna():
 
 all_events = sorted(list(all_events_set))
 all_markets = sorted(list(all_markets_set))
+
+# Εξαγωγή μοναδικών ΟΜΑΔΩΝ από τα Events
+all_teams_set = set()
+for ev in all_events:
+    for delim in [' - ', ' vs ', '-']:
+        if delim in ev:
+            parts = ev.split(delim)
+            if len(parts) == 2:
+                all_teams_set.add(parts[0].strip())
+                all_teams_set.add(parts[1].strip())
+            break
+    else:
+        all_teams_set.add(ev)
+all_teams = sorted(list(all_teams_set))
 
 global_avg_odds = df['Odds'].mean()
 if pd.isna(global_avg_odds) or global_avg_odds < 1.01:
@@ -364,21 +388,17 @@ if st.session_state['show_new_bet_modal']:
             
             ev_choice = c_ev.selectbox("Αγώνας", ["✍️ Νέα Καταχώρηση..."] + all_events, key=f"ev_choice_single_{reset_id}")
             if ev_choice == "✍️ Νέα Καταχώρηση...": 
-                event_str = c_ev.text_input("Γράψε νέο Αγώνα:", value="", key=f"ev_single_{reset_id}")
-                if event_str:
-                    sims = get_similar_items(event_str, all_events)
-                    if sims:
-                        c_ev.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                event_key = f"ev_single_txt_{reset_id}"
+                event_str = c_ev.text_input("Γράψε νέο Αγώνα:", key=event_key)
+                render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
             else: 
                 event_str = ev_choice
                 
             ma_choice = c_ma.selectbox("Αγορά", ["✍️ Νέα Καταχώρηση..."] + all_markets, key=f"ma_choice_single_{reset_id}")
             if ma_choice == "✍️ Νέα Καταχώρηση...": 
-                market_str = c_ma.text_input("Γράψε νέα Αγορά:", value="", key=f"ma_single_{reset_id}")
-                if market_str:
-                    sims = get_similar_items(market_str, all_markets)
-                    if sims:
-                        c_ma.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                market_key = f"ma_single_txt_{reset_id}"
+                market_str = c_ma.text_input("Γράψε νέα Αγορά:", key=market_key)
+                render_suggestions(c_ma, market_key, market_str, get_market_suggestions, (all_markets,))
             else: 
                 market_str = ma_choice
             
@@ -389,21 +409,17 @@ if st.session_state['show_new_bet_modal']:
                 cc1, cc2, cc3 = st.columns([2,2,1])
                 l_ev_choice = cc1.selectbox(f"Αγώνας {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_events, key=f"lev_choice_{i}_{reset_id}")
                 if l_ev_choice == "✍️ Νέα Καταχώρηση...": 
-                    l_ev = cc1.text_input(f"Νέος Αγώνας {i+1}", value="", key=f"ev_{i}_{reset_id}", label_visibility="collapsed")
-                    if l_ev:
-                        sims = get_similar_items(l_ev, all_events)
-                        if sims:
-                            cc1.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                    l_ev_key = f"ev_t_{i}_{reset_id}"
+                    l_ev = cc1.text_input(f"Νέος Αγώνας {i+1}", key=l_ev_key, label_visibility="collapsed")
+                    render_suggestions(cc1, l_ev_key, l_ev, get_event_suggestions, (all_events, all_teams))
                 else: 
                     l_ev = l_ev_choice
                     
                 l_ma_choice = cc2.selectbox(f"Σημείο {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_markets, key=f"lma_choice_{i}_{reset_id}")
                 if l_ma_choice == "✍️ Νέα Καταχώρηση...": 
-                    l_ma = cc2.text_input(f"Νέο Σημείο {i+1}", value="", key=f"ma_{i}_{reset_id}", label_visibility="collapsed")
-                    if l_ma:
-                        sims = get_similar_items(l_ma, all_markets)
-                        if sims:
-                            cc2.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                    l_ma_key = f"ma_t_{i}_{reset_id}"
+                    l_ma = cc2.text_input(f"Νέο Σημείο {i+1}", key=l_ma_key, label_visibility="collapsed")
+                    render_suggestions(cc2, l_ma_key, l_ma, get_market_suggestions, (all_markets,))
                 else: 
                     l_ma = l_ma_choice
                     
@@ -752,22 +768,18 @@ else:
                         ev_idx = all_events.index(e_event) + 1 if e_event in all_events else 0
                         ev_choice = c_ev.selectbox("Αγώνας", ["✍️ Νέα Καταχώρηση..."] + all_events, index=ev_idx, key=f"ed_ev_choice_{selected_aa}")
                         if ev_choice == "✍️ Νέα Καταχώρηση...": 
-                            final_ev_str = c_ev.text_input("Γράψε Αγώνα:", value=e_event if ev_idx==0 else "", key=f"ed_ev_txt_{selected_aa}")
-                            if final_ev_str:
-                                sims = get_similar_items(final_ev_str, all_events)
-                                if sims:
-                                    c_ev.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                            ed_ev_key = f"ed_ev_txt_{selected_aa}"
+                            final_ev_str = c_ev.text_input("Γράψε Αγώνα:", value=e_event if ev_idx==0 else "", key=ed_ev_key)
+                            render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
                         else: 
                             final_ev_str = ev_choice
                             
                         ma_idx = all_markets.index(e_market) + 1 if e_market in all_markets else 0
                         ma_choice = c_ma.selectbox("Αγορά", ["✍️ Νέα Καταχώρηση..."] + all_markets, index=ma_idx, key=f"ed_ma_choice_{selected_aa}")
                         if ma_choice == "✍️ Νέα Καταχώρηση...": 
-                            final_ma_str = c_ma.text_input("Γράψε Αγορά:", value=e_market if ma_idx==0 else "", key=f"ed_ma_txt_{selected_aa}")
-                            if final_ma_str:
-                                sims = get_similar_items(final_ma_str, all_markets)
-                                if sims:
-                                    c_ma.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                            ed_ma_key = f"ed_ma_txt_{selected_aa}"
+                            final_ma_str = c_ma.text_input("Γράψε Αγορά:", value=e_market if ma_idx==0 else "", key=ed_ma_key)
+                            render_suggestions(c_ma, ed_ma_key, final_ma_str, get_market_suggestions, (all_markets,))
                         else: 
                             final_ma_str = ma_choice
                             
@@ -783,21 +795,17 @@ else:
                             l_ev_idx = all_events.index(leg_ev) + 1 if leg_ev in all_events else 0
                             l_ev_choice = cc1.selectbox(f"Αγώνας {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_events, index=l_ev_idx, key=f"ed_lev_c_{i}_{selected_aa}")
                             if l_ev_choice == "✍️ Νέα Καταχώρηση...":
-                                l_ev_final = cc1.text_input(f"Νέος Αγώνας {i+1}", value=leg_ev if l_ev_idx==0 else "", key=f"ed_lev_t_{i}_{selected_aa}", label_visibility="collapsed")
-                                if l_ev_final:
-                                    sims = get_similar_items(l_ev_final, all_events)
-                                    if sims:
-                                        cc1.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                                ed_lev_key = f"ed_lev_t_{i}_{selected_aa}"
+                                l_ev_final = cc1.text_input(f"Νέος Αγώνας {i+1}", value=leg_ev if l_ev_idx==0 else "", key=ed_lev_key, label_visibility="collapsed")
+                                render_suggestions(cc1, ed_lev_key, l_ev_final, get_event_suggestions, (all_events, all_teams))
                             else: l_ev_final = l_ev_choice
                                 
                             l_ma_idx = all_markets.index(leg_ma) + 1 if leg_ma in all_markets else 0
                             l_ma_choice = cc2.selectbox(f"Σημείο {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_markets, index=l_ma_idx, key=f"ed_lma_c_{i}_{selected_aa}")
                             if l_ma_choice == "✍️ Νέα Καταχώρηση...":
-                                l_ma_final = cc2.text_input(f"Νέο Σημείο {i+1}", value=leg_ma if l_ma_idx==0 else "", key=f"ed_lma_t_{i}_{selected_aa}", label_visibility="collapsed")
-                                if l_ma_final:
-                                    sims = get_similar_items(l_ma_final, all_markets)
-                                    if sims:
-                                        cc2.info("💡 **Μήπως εννοείς:**\n" + "\n".join([f"- {s}" for s in sims]))
+                                ed_lma_key = f"ed_lma_t_{i}_{selected_aa}"
+                                l_ma_final = cc2.text_input(f"Νέο Σημείο {i+1}", value=leg_ma if l_ma_idx==0 else "", key=ed_lma_key, label_visibility="collapsed")
+                                render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
                             else: l_ma_final = l_ma_choice
                                 
                             l_od_final = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_lod_{i}_{selected_aa}")
