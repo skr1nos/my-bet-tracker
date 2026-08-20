@@ -73,10 +73,8 @@ def normalize_greek(text):
 
 def find_team_match(t, norm_teams_dict):
     """Βρίσκει την καλύτερη αντιστοιχία ομάδας."""
-    # 1. Ψάχνει για κοντινό ορθογραφικό
     m = difflib.get_close_matches(t, norm_teams_dict.keys(), n=1, cutoff=0.65)
     if m: return norm_teams_dict[m[0]]
-    # 2. Ψάχνει αν το κείμενο είναι τμήμα της κανονικής λέξης (π.χ. "Λίμπερτι" -> "Νιου Γιορκ Λίμπερτι")
     for kt in norm_teams_dict.keys():
         if t in kt and len(t) >= 4:
             return norm_teams_dict[kt]
@@ -86,13 +84,12 @@ def get_event_suggestions(user_text, all_events, all_teams):
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     
-    # Αν υπάρχει ήδη αυτούσιο, μην προτείνεις τίποτα
     if norm_user in [normalize_greek(e) for e in all_events]:
         return []
         
     suggestions = []
     
-    # 1. Αν γράφει αγώνα με παύλα (ζευγάρι)
+    # Αν γράφει αγώνα με παύλα (ζευγάρι)
     delim_found = False
     for delim in [' - ', ' vs ', '-']:
         if delim in user_text:
@@ -111,7 +108,7 @@ def get_event_suggestions(user_text, all_events, all_teams):
                     suggestions.append(f"{final_t1} {delim.strip()} {final_t2}")
             break
             
-    # 2. Αν δεν είναι ζευγάρι ή δεν βρέθηκε, ψάξε αυστηρά (cutoff=0.75) σε όλο το ιστορικό
+    # Αν δεν είναι ζευγάρι ή δεν βρέθηκε, ψάξε αυστηρά (cutoff=0.75)
     if not suggestions:
         full_matches = difflib.get_close_matches(norm_user, [normalize_greek(e) for e in all_events], n=2, cutoff=0.75)
         for fm in full_matches:
@@ -123,44 +120,43 @@ def get_event_suggestions(user_text, all_events, all_teams):
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
+    """ΝΕΑ ΛΟΓΙΚΗ ΑΓΟΡΑΣ: Ψάχνει Χειρουργικά λέξη προς λέξη."""
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     
     if norm_user in [normalize_greek(m) for m in all_markets]:
         return []
         
-    # 1. Ψάξιμο σε όλη την αγορά (αυστηρό cutoff=0.75)
-    full_matches = difflib.get_close_matches(norm_user, [normalize_greek(m) for m in all_markets], n=2, cutoff=0.75)
-    if full_matches:
-        suggs = []
-        for m in all_markets:
-            if normalize_greek(m) in full_matches:
-                suggs.append(m)
-        return list(dict.fromkeys(suggs))
-        
-    # 2. Ψάξιμο λέξη προς λέξη (π.χ. παίκτης)
-    words = user_text.split()
+    # 1. Βρίσκουμε όλες τις λέξεις από το ιστορικό
     known_words_map = {}
     for m in all_markets:
         for w in m.split():
-            if len(w) > 2: known_words_map[normalize_greek(w)] = w
+            if len(w) >= 2:
+                known_words_map[normalize_greek(w)] = w
                 
-    ignore_words = {'over', 'under', 'ov', 'un', 'points', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'και', 'g/g'}
+    words = user_text.split()
     corrected_words = []
     changed = False
     
     for w in words:
         nw = normalize_greek(w)
-        if nw in ignore_words or re.match(r'^[\d\.]+$', nw):
+        
+        # Αν είναι αριθμός (π.χ. 15.5), τον κρατάμε ως έχει
+        if re.match(r'^[\d\.\,]+$', nw):
             corrected_words.append(w)
+            continue
+            
+        # Ψάχνουμε κοντινή λέξη στο ιστορικό
+        wm = difflib.get_close_matches(nw, known_words_map.keys(), n=1, cutoff=0.65)
+        
+        if wm and wm[0] != nw:
+            # Βρέθηκε ορθογραφικό/συντόμευση, το διορθώνουμε!
+            corrected_words.append(known_words_map[wm[0]])
+            changed = True
         else:
-            wm = difflib.get_close_matches(nw, known_words_map.keys(), n=1, cutoff=0.75)
-            if wm and wm[0] != nw:
-                corrected_words.append(known_words_map[wm[0]])
-                changed = True
-            else:
-                corrected_words.append(w)
-                
+            # Αν η λέξη (π.χ. Reese) είναι νέα, απλά την κρατάμε όπως την έγραψε
+            corrected_words.append(w)
+            
     if changed:
         return [" ".join(corrected_words)]
     return []
