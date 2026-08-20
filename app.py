@@ -369,7 +369,9 @@ if st.session_state['show_new_bet_modal']:
                 if bet_type != "Μονό":
                     legs_json = json.dumps(legs)
                     if bet_type == "Bet Builder":
-                        event_str = legs[0]['event'] if legs[0]['event'] else "" 
+                        # ΝΕΟ: Εμφανίζει τον Αγώνα ΚΑΙ τον αριθμό επιλογών
+                        base_ev = legs[0]['event'] if legs and legs[0]['event'] else ""
+                        event_str = f"{base_ev} ({len(legs)} επιλογές)" if base_ev else f"{len(legs)} επιλογές"
                     else:
                         events_list = [l['event'] for l in legs if l['event']]
                         event_str = " | ".join(events_list) if events_list else ""
@@ -482,7 +484,8 @@ else:
                 if not completed_bets.empty:
                     df_line = sorted_for_streaks.copy()
                     df_line['Bankroll'] = df_line['Profit'].cumsum()
-                    df_line['Ημ/νια'] = df_line['Date'].astype(str) + " " + df_line['Time'].astype(str)
+                    # ΝΕΟ: Μορφοποίηση Ημερομηνίας σε ΗΗ/ΜΜ/ΕΕΕΕ χωρίς ώρα
+                    df_line['Ημ/νια'] = pd.to_datetime(df_line['Date']).dt.strftime('%d/%m/%Y')
                     df_line['Bet_Count'] = range(1, len(df_line) + 1)
                     
                     zero_point = pd.DataFrame([{
@@ -611,7 +614,6 @@ else:
     elif page == "✏️ Επεξεργασία & Διαγραφή":
         st.header("✏️ Επεξεργασία & Διαγραφή")
         
-        # --- ΝΕΟ: ΠΛΗΡΗΣ ΕΠΕΞΕΡΓΑΣΙΑ ΜΕ ΦΟΡΜΑ ---
         st.markdown("### 📝 Πλήρης Επεξεργασία (Μορφή Φόρμας)")
         st.info("💡 Επίλεξε ένα δελτίο. Θα ανοίξει η ίδια ακριβώς καρτέλα με την οποία το καταχώρησες, για να αλλάξεις εύκολα ό,τι θες!")
         
@@ -768,7 +770,9 @@ else:
                                 if edit_bet_type != "Μονό":
                                     legs_json = json.dumps(new_legs)
                                     if edit_bet_type == "Bet Builder":
-                                        final_ev_str = new_legs[0]['event'] if new_legs[0]['event'] else "" 
+                                        # ΝΕΟ: Εμφανίζει τον Αγώνα ΚΑΙ τον αριθμό επιλογών στην επεξεργασία
+                                        base_ev = new_legs[0]['event'] if new_legs and new_legs[0]['event'] else ""
+                                        final_ev_str = f"{base_ev} ({len(new_legs)} επιλογές)" if base_ev else f"{len(new_legs)} επιλογές"
                                     else:
                                         events_list = [l['event'] for l in new_legs if l['event']]
                                         final_ev_str = " | ".join(events_list) if events_list else ""
