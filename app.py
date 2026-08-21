@@ -580,13 +580,29 @@ else:
                     }])
                     df_line = pd.concat([zero_point, df_line], ignore_index=True)
                     
-                    # ΝΕΟ: interpolate='monotone' για απαλές καμπύλες!
                     base = alt.Chart(df_line).encode(
                         x=alt.X('Bet_Count:Q', axis=alt.Axis(labels=False, title=None, ticks=False, grid=False)),
                         y=alt.Y('Bankroll:Q', title="Ταμείο (€)", axis=alt.Axis(gridColor="#1f2937"))
                     )
                     
-                    line = base.mark_line(color="#4db8ff", strokeWidth=3, point=True, interpolate='monotone')
+                    # ΝΕΟ: Γραμμή με χρωματισμό υπό συνθήκη (Πράσινο αν >= 0, Κόκκινο αν < 0)
+                    line = base.mark_trail(interpolate='monotone').encode(
+                        color=alt.condition(
+                            alt.datum.Bankroll >= 0,
+                            alt.value('#4ade80'),
+                            alt.value('#ff4b4b')
+                        ),
+                        size=alt.value(3)
+                    )
+                    
+                    # Κουκκίδες ακριβώς πάνω στα σημεία για να φαίνονται καθαρά
+                    points = base.mark_circle(size=60).encode(
+                        color=alt.condition(
+                            alt.datum.Bankroll >= 0,
+                            alt.value('#4ade80'),
+                            alt.value('#ff4b4b')
+                        )
+                    )
                     
                     hover_points = base.mark_circle(size=500, color="transparent").encode(
                         tooltip=[
@@ -595,7 +611,7 @@ else:
                         ]
                     )
                     
-                    chart = (line + hover_points).properties(height=350)
+                    chart = (line + points + hover_points).properties(height=350)
                     st.altair_chart(chart, use_container_width=True, theme="streamlit")
                 else:
                     st.info("Δεν υπάρχουν ολοκληρωμένα δελτία στο επιλεγμένο εύρος ημερομηνιών για να εμφανιστεί γράφημα.")
