@@ -11,7 +11,6 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -57,7 +56,6 @@ if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_co
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
 if 'show_new_bet_modal' not in st.session_state: st.session_state['show_new_bet_modal'] = False
-if 'scroll_to_top' not in st.session_state: st.session_state['scroll_to_top'] = False
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -110,33 +108,43 @@ def get_event_suggestions(user_text, all_events, all_teams):
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
+    """ΝΕΑ ΛΟΓΙΚΗ: Επιστρέφει την ΟΛΟΚΛΗΡΗ αγορά από το ιστορικό, παρά τα ορθογραφικά!"""
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     if norm_user in [normalize_greek(m) for m in all_markets]: return []
         
-    known_words_map = {}
-    for m in all_markets:
-        for w in m.split():
-            if len(w) >= 2: known_words_map[normalize_greek(w)] = w
-                
-    words = user_text.split()
-    corrected_words = []
-    changed = False
+    ignore_words = {'over', 'under', 'ov', 'un', 'points', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'και', 'g/g', 'ng', '1', 'x', '2'}
     
-    for w in words:
-        nw = normalize_greek(w)
-        if re.match(r'^[\d\.\,]+$', nw):
-            corrected_words.append(w); continue
+    # Λέξεις του χρήστη (χωρίς νούμερα και over/under)
+    user_words = [w for w in norm_user.split() if w not in ignore_words and not re.match(r'^[\d\.\,]+$', w)]
+    
+    scored_markets = []
+    
+    for m in all_markets:
+        norm_m = normalize_greek(m)
+        
+        # Περίπτωση 1: Ο χρήστης έγραψε μέρος της λέξης σωστά
+        if norm_user in norm_m:
+            scored_markets.append((m, 0.9))
+            continue
             
-        wm = difflib.get_close_matches(nw, known_words_map.keys(), n=1, cutoff=0.65)
-        if wm and wm[0] != nw:
-            corrected_words.append(known_words_map[wm[0]])
-            changed = True
+        m_words = [w for w in norm_m.split() if w not in ignore_words and not re.match(r'^[\d\.\,]+$', w)]
+        
+        if not user_words or not m_words:
+            score = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
         else:
-            corrected_words.append(w)
+            # Περίπτωση 2: Έξυπνο ταίριασμα λέξη προς λέξη
+            total_score = 0
+            for uw in user_words:
+                best_w_score = max([difflib.SequenceMatcher(None, uw, mw).ratio() for mw in m_words] + [0])
+                total_score += best_w_score
+            score = total_score / len(user_words)
             
-    if changed: return [" ".join(corrected_words)]
-    return []
+        if score > 0.65:
+            scored_markets.append((m, score))
+            
+    scored_markets.sort(key=lambda x: x[1], reverse=True)
+    return list(dict.fromkeys([x[0] for x in scored_markets]))[:3]
 
 def render_suggestions(container, input_key, current_value, sugg_func, args):
     if not current_value: return
@@ -269,7 +277,6 @@ GREEK_COLUMNS = {
 st.sidebar.title("🗂️ Μενού Εφαρμογής")
 if st.sidebar.button("➕ Νέο Στοίχημα", type="primary", use_container_width=True):
     st.session_state['show_new_bet_modal'] = not st.session_state['show_new_bet_modal']
-    if st.session_state['show_new_bet_modal']: st.session_state['scroll_to_top'] = True
 
 page = st.sidebar.radio("Επίλεξε Σελίδα:", ["🏠 Αρχική & Στατιστικά", "⏳ Εκκρεμή", "📋 Ιστορικό ανά Μήνα", "✏️ Επεξεργασία & Διαγραφή"])
 st.sidebar.markdown("---")
@@ -293,12 +300,6 @@ elif len(date_filter) == 1:
 if search_event: filtered_df = filtered_df[filtered_df['Event'].str.contains(search_event, case=False, na=False)]
 if selected_sport != "Όλα": filtered_df = filtered_df[filtered_df['Sport'] == selected_sport]
 if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filtered_df['Type'] == selected_type]
-
-if st.session_state.get('scroll_to_top', False):
-    components.html(
-        "<script>window.parent.scrollTo({top: 0, behavior: 'smooth'});</script>", height=0
-    )
-    st.session_state['scroll_to_top'] = False
 
 st.title("📈 Στοιχηματικό Dashboard")
 
