@@ -333,45 +333,34 @@ if st.session_state['show_new_bet_modal']:
             st.markdown("🔹 **Αγώνας & Αγορά**")
             c_ev, c_ma = st.columns(2)
             
-            ev_choice = c_ev.selectbox("Αγώνας", ["✍️ Νέα Καταχώρηση..."] + all_events, key=f"ev_choice_single_{reset_id}")
-            if ev_choice == "✍️ Νέα Καταχώρηση...": 
-                event_key = f"ev_single_txt_{reset_id}"
-                event_str = c_ev.text_input("Γράψε νέο Αγώνα:", key=event_key)
-                render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
-            else: event_str = ev_choice
-                
-            ma_choice = c_ma.selectbox("Αγορά", ["✍️ Νέα Καταχώρηση..."] + all_markets, key=f"ma_choice_single_{reset_id}")
-            if ma_choice == "✍️ Νέα Καταχώρηση...": 
-                market_key = f"ma_single_txt_{reset_id}"
-                market_str = c_ma.text_input("Γράψε νέα Αγορά:", key=market_key)
-                render_suggestions(c_ma, market_key, market_str, get_market_suggestions, (all_markets,))
-            else: market_str = ma_choice
+            event_key = f"ev_single_txt_{reset_id}"
+            event_str = c_ev.text_input("Αγώνας:", key=event_key)
+            render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
+            
+            market_key = f"ma_single_txt_{reset_id}"
+            market_str = c_ma.text_input("Αγορά:", key=market_key)
+            render_suggestions(c_ma, market_key, market_str, get_market_suggestions, (all_markets,))
             
         elif bet_type == "Bet Builder":
             st.markdown("🔹 **Κοινός Αγώνας (Bet Builder)**")
             c_ev, _ = st.columns(2)
-            ev_choice = c_ev.selectbox("Αγώνας", ["✍️ Νέα Καταχώρηση..."] + all_events, key=f"bb_ev_choice_{reset_id}")
-            if ev_choice == "✍️ Νέα Καταχώρηση...": 
-                event_key = f"bb_ev_txt_{reset_id}"
-                event_str = c_ev.text_input("Γράψε τον Αγώνα:", key=event_key)
-                render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
-            else: event_str = ev_choice
+            
+            event_key = f"bb_ev_txt_{reset_id}"
+            event_str = c_ev.text_input("Αγώνας:", key=event_key)
+            render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
 
             st.markdown("🔹 **Σημεία Bet Builder**")
             for i in range(int(num_legs)):
                 cc2, cc3, cc4 = st.columns([3,1,2])
-                l_ma_choice = cc2.selectbox(f"Σημείο {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_markets, key=f"bb_lma_choice_{i}_{reset_id}")
-                if l_ma_choice == "✍️ Νέα Καταχώρηση...": 
-                    l_ma_key = f"bb_ma_t_{i}_{reset_id}"
-                    l_ma = cc2.text_input(f"Νέο Σημείο {i+1}", key=l_ma_key, label_visibility="collapsed")
-                    render_suggestions(cc2, l_ma_key, l_ma, get_market_suggestions, (all_markets,))
-                else: l_ma = l_ma_choice
+                
+                l_ma_key = f"bb_ma_t_{i}_{reset_id}"
+                l_ma = cc2.text_input(f"Σημείο {i+1}", key=l_ma_key)
+                render_suggestions(cc2, l_ma_key, l_ma, get_market_suggestions, (all_markets,))
                     
                 l_od = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=1.50, key=f"bb_od_{i}_{reset_id}")
                 l_st = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, key=f"bb_st_{i}_{reset_id}")
                 
                 legs.append({"event": event_str, "market": l_ma, "odds": l_od, "status": l_st})
-                # Αν είναι ακυρωμένο, η απόδοση πάει μονάδα!
                 if l_st == "🔵 Ακυρωμένο": auto_odds *= 1.0
                 else: auto_odds *= l_od
 
@@ -379,19 +368,14 @@ if st.session_state['show_new_bet_modal']:
             st.markdown(f"🔹 **Ανάλυση Σημείων ({bet_type})**")
             for i in range(int(num_legs)):
                 cc1, cc2, cc3, cc4 = st.columns([3,3,1,2])
-                l_ev_choice = cc1.selectbox(f"Αγώνας {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_events, key=f"lev_choice_{i}_{reset_id}")
-                if l_ev_choice == "✍️ Νέα Καταχώρηση...": 
-                    l_ev_key = f"ev_t_{i}_{reset_id}"
-                    l_ev = cc1.text_input(f"Νέος Αγώνας {i+1}", key=l_ev_key, label_visibility="collapsed")
-                    render_suggestions(cc1, l_ev_key, l_ev, get_event_suggestions, (all_events, all_teams))
-                else: l_ev = l_ev_choice
+                
+                l_ev_key = f"ev_t_{i}_{reset_id}"
+                l_ev = cc1.text_input(f"Αγώνας {i+1}", key=l_ev_key)
+                render_suggestions(cc1, l_ev_key, l_ev, get_event_suggestions, (all_events, all_teams))
                     
-                l_ma_choice = cc2.selectbox(f"Σημείο {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_markets, key=f"lma_choice_{i}_{reset_id}")
-                if l_ma_choice == "✍️ Νέα Καταχώρηση...": 
-                    l_ma_key = f"ma_t_{i}_{reset_id}"
-                    l_ma = cc2.text_input(f"Νέο Σημείο {i+1}", key=l_ma_key, label_visibility="collapsed")
-                    render_suggestions(cc2, l_ma_key, l_ma, get_market_suggestions, (all_markets,))
-                else: l_ma = l_ma_choice
+                l_ma_key = f"ma_t_{i}_{reset_id}"
+                l_ma = cc2.text_input(f"Σημείο {i+1}", key=l_ma_key)
+                render_suggestions(cc2, l_ma_key, l_ma, get_market_suggestions, (all_markets,))
                     
                 l_od = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=1.50, key=f"od_{i}_{reset_id}")
                 l_st = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, key=f"lst_{i}_{reset_id}")
@@ -414,12 +398,9 @@ if st.session_state['show_new_bet_modal']:
             chosen_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, key=f"stake_preset_{reset_id}")
             custom_stake = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, format="%.2f", key=f"custom_stake_{reset_id}")
             
-            # Δυναμική Κατάσταση για τα Παρολί/BB
             status_sel = c8.selectbox("Κατάσταση (Συνολική)", ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"], key=f"status_{reset_id}")
-            if status_sel == "Αυτόματος Υπολογισμός ⚙️":
-                status = calc_overall_status(legs)
-            else:
-                status = "🟡 Cash Out"
+            if status_sel == "Αυτόματος Υπολογισμός ⚙️": status = calc_overall_status(legs)
+            else: status = "🟡 Cash Out"
         
         cash_out_val = 0.0
         if status == "🟡 Cash Out":
@@ -487,7 +468,6 @@ else:
             total_staked = completed_bets['Stake'].sum()
             yield_pct = (total_profit / total_staked * 100) if total_staked > 0 else 0
             
-            # Μόνο όσα είναι κερδισμένα/χαμένα μετράνε στο Win Rate
             wl_bets = completed_bets[completed_bets['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
             win_rate = (len(wl_bets[wl_bets['Profit'] > 0]) / len(wl_bets) * 100) if len(wl_bets) > 0 else 0
             total_bets = len(completed_bets)
@@ -744,36 +724,23 @@ else:
                         st.markdown("🔹 **Αγώνας & Αγορά (Επεξεργασία)**")
                         c_ev, c_ma = st.columns(2)
                         
-                        ev_idx = all_events.index(e_event) + 1 if e_event in all_events else 0
-                        ev_choice = c_ev.selectbox("Αγώνας", ["✍️ Νέα Καταχώρηση..."] + all_events, index=ev_idx, key=f"ed_ev_choice_{selected_aa}")
-                        if ev_choice == "✍️ Νέα Καταχώρηση...": 
-                            ed_ev_key = f"ed_ev_txt_{selected_aa}"
-                            final_ev_str = c_ev.text_input("Γράψε Αγώνα:", value=e_event if ev_idx==0 else "", key=ed_ev_key)
-                            render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
-                        else: final_ev_str = ev_choice
+                        ed_ev_key = f"ed_ev_txt_{selected_aa}"
+                        final_ev_str = c_ev.text_input("Αγώνας:", value=e_event, key=ed_ev_key)
+                        render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
                             
-                        ma_idx = all_markets.index(e_market) + 1 if e_market in all_markets else 0
-                        ma_choice = c_ma.selectbox("Αγορά", ["✍️ Νέα Καταχώρηση..."] + all_markets, index=ma_idx, key=f"ed_ma_choice_{selected_aa}")
-                        if ma_choice == "✍️ Νέα Καταχώρηση...": 
-                            ed_ma_key = f"ed_ma_txt_{selected_aa}"
-                            final_ma_str = c_ma.text_input("Γράψε Αγορά:", value=e_market if ma_idx==0 else "", key=ed_ma_key)
-                            render_suggestions(c_ma, ed_ma_key, final_ma_str, get_market_suggestions, (all_markets,))
-                        else: final_ma_str = ma_choice
+                        ed_ma_key = f"ed_ma_txt_{selected_aa}"
+                        final_ma_str = c_ma.text_input("Αγορά:", value=e_market, key=ed_ma_key)
+                        render_suggestions(c_ma, ed_ma_key, final_ma_str, get_market_suggestions, (all_markets,))
                             
                     elif edit_bet_type == "Bet Builder":
                         st.markdown("🔹 **Κοινός Αγώνας (Bet Builder)**")
                         c_ev, _ = st.columns(2)
                         bb_ev = e_legs[0]['event'] if e_legs and 'event' in e_legs[0] else e_event
-                        
                         bb_ev_clean = bb_ev.split(" (")[0] if " (" in bb_ev else bb_ev
-                        ev_idx = all_events.index(bb_ev_clean) + 1 if bb_ev_clean in all_events else 0
                         
-                        ev_choice = c_ev.selectbox("Αγώνας", ["✍️ Νέα Καταχώρηση..."] + all_events, index=ev_idx, key=f"ed_bb_ev_c_{selected_aa}")
-                        if ev_choice == "✍️ Νέα Καταχώρηση...": 
-                            ed_ev_key = f"ed_bb_ev_t_{selected_aa}"
-                            final_ev_str = c_ev.text_input("Γράψε τον Αγώνα:", value=bb_ev_clean if ev_idx==0 else "", key=ed_ev_key)
-                            render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
-                        else: final_ev_str = ev_choice
+                        ed_ev_key = f"ed_bb_ev_t_{selected_aa}"
+                        final_ev_str = c_ev.text_input("Αγώνας:", value=bb_ev_clean, key=ed_ev_key)
+                        render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
 
                         st.markdown("🔹 **Σημεία Bet Builder**")
                         for i in range(int(edit_num_legs)):
@@ -782,16 +749,11 @@ else:
                             leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
                             leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
                             
-                            l_ma_idx = all_markets.index(leg_ma) + 1 if leg_ma in all_markets else 0
-                            l_ma_choice = cc2.selectbox(f"Σημείο {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_markets, index=l_ma_idx, key=f"ed_bb_lma_c_{i}_{selected_aa}")
-                            if l_ma_choice == "✍️ Νέα Καταχώρηση...":
-                                ed_lma_key = f"ed_bb_lma_t_{i}_{selected_aa}"
-                                l_ma_final = cc2.text_input(f"Νέο Σημείο {i+1}", value=leg_ma if l_ma_idx==0 else "", key=ed_lma_key, label_visibility="collapsed")
-                                render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
-                            else: l_ma_final = l_ma_choice
+                            ed_lma_key = f"ed_bb_lma_t_{i}_{selected_aa}"
+                            l_ma_final = cc2.text_input(f"Σημείο {i+1}", value=leg_ma, key=ed_lma_key)
+                            render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
                                 
                             l_od_final = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_bb_lod_{i}_{selected_aa}")
-                            
                             st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
                             l_st_final = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_bb_lst_{i}_{selected_aa}")
 
@@ -808,24 +770,15 @@ else:
                             leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
                             leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
                             
-                            l_ev_idx = all_events.index(leg_ev) + 1 if leg_ev in all_events else 0
-                            l_ev_choice = cc1.selectbox(f"Αγώνας {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_events, index=l_ev_idx, key=f"ed_lev_c_{i}_{selected_aa}")
-                            if l_ev_choice == "✍️ Νέα Καταχώρηση...":
-                                ed_lev_key = f"ed_lev_t_{i}_{selected_aa}"
-                                l_ev_final = cc1.text_input(f"Νέος Αγώνας {i+1}", value=leg_ev if l_ev_idx==0 else "", key=ed_lev_key, label_visibility="collapsed")
-                                render_suggestions(cc1, ed_lev_key, l_ev_final, get_event_suggestions, (all_events, all_teams))
-                            else: l_ev_final = l_ev_choice
+                            ed_lev_key = f"ed_lev_t_{i}_{selected_aa}"
+                            l_ev_final = cc1.text_input(f"Αγώνας {i+1}", value=leg_ev, key=ed_lev_key)
+                            render_suggestions(cc1, ed_lev_key, l_ev_final, get_event_suggestions, (all_events, all_teams))
                                 
-                            l_ma_idx = all_markets.index(leg_ma) + 1 if leg_ma in all_markets else 0
-                            l_ma_choice = cc2.selectbox(f"Σημείο {i+1}", ["✍️ Νέα Καταχώρηση..."] + all_markets, index=l_ma_idx, key=f"ed_lma_c_{i}_{selected_aa}")
-                            if l_ma_choice == "✍️ Νέα Καταχώρηση...":
-                                ed_lma_key = f"ed_lma_t_{i}_{selected_aa}"
-                                l_ma_final = cc2.text_input(f"Νέο Σημείο {i+1}", value=leg_ma if l_ma_idx==0 else "", key=ed_lma_key, label_visibility="collapsed")
-                                render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
-                            else: l_ma_final = l_ma_choice
+                            ed_lma_key = f"ed_lma_t_{i}_{selected_aa}"
+                            l_ma_final = cc2.text_input(f"Σημείο {i+1}", value=leg_ma, key=ed_lma_key)
+                            render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
                                 
                             l_od_final = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_lod_{i}_{selected_aa}")
-                            
                             st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
                             l_st_final = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_lst_{i}_{selected_aa}")
 
@@ -851,7 +804,7 @@ else:
                         status_idx = STATUS_LIST.index(e_status) if e_status in STATUS_LIST else 0
                         ed_status = c8.selectbox("Κατάσταση (Συνολική)", STATUS_LIST, index=status_idx, key=f"ed_status_{selected_aa}")
                     else:
-                        ed_odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.01, step=0.01, value=float(auto_odds), key=f"ed_odds_{selected_aa}")
+                        ed_odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=float(auto_odds), key=f"ed_odds_{selected_aa}")
                         
                         preset_idx = len(STAKE_PRESETS) - 1
                         for idx_p, p_val in enumerate(STAKE_PRESETS):
