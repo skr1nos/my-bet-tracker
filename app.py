@@ -108,41 +108,50 @@ def get_event_suggestions(user_text, all_events, all_teams):
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
-    """ΝΕΑ ΛΟΓΙΚΗ: Επιστρέφει την ΟΛΟΚΛΗΡΗ αγορά από το ιστορικό, παρά τα ορθογραφικά!"""
+    """ΝΕΑ ΛΟΓΙΚΗ ΑΓΟΡΑΣ: Αυστηρό ταίριασμα στο όνομα του παίκτη/οντότητας!"""
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     if norm_user in [normalize_greek(m) for m in all_markets]: return []
         
-    ignore_words = {'over', 'under', 'ov', 'un', 'points', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'και', 'g/g', 'ng', '1', 'x', '2'}
+    ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u'}
     
-    # Λέξεις του χρήστη (χωρίς νούμερα και over/under)
-    user_words = [w for w in norm_user.split() if w not in ignore_words and not re.match(r'^[\d\.\,]+$', w)]
+    # Λειτουργία που απομονώνει το ΟΝΟΜΑ πριν ξεκινήσουν τα over/under και τα νούμερα
+    def get_entity_prefix(text):
+        words = []
+        for w in text.split():
+            if re.match(r'^[\d\.\,]+$', w) or w in ignore_break_words:
+                break
+            words.append(w)
+        return " ".join(words)
+
+    user_prefix = get_entity_prefix(norm_user)
     
     scored_markets = []
-    
     for m in all_markets:
         norm_m = normalize_greek(m)
         
-        # Περίπτωση 1: Ο χρήστης έγραψε μέρος της λέξης σωστά
+        # Αν το περιέχει αυτούσιο, προτεραιότητα
         if norm_user in norm_m:
-            scored_markets.append((m, 0.9))
+            scored_markets.append((m, 2.0))
             continue
             
-        m_words = [w for w in norm_m.split() if w not in ignore_words and not re.match(r'^[\d\.\,]+$', w)]
+        m_prefix = get_entity_prefix(norm_m)
         
-        if not user_words or not m_words:
-            score = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
+        if user_prefix and m_prefix:
+            prefix_ratio = difflib.SequenceMatcher(None, user_prefix, m_prefix).ratio()
+            
+            # ΑΥΣΤΗΡΟΣ ΕΛΕΓΧΟΣ: Το όνομα του παίκτη πρέπει να μοιάζει τουλάχιστον 65%!
+            # Αλλιώς (π.χ. kamilla vs carla) απορρίπτεται απευθείας.
+            if prefix_ratio < 0.65:
+                continue 
+            
+            overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
+            scored_markets.append((m, overall_ratio + prefix_ratio))
         else:
-            # Περίπτωση 2: Έξυπνο ταίριασμα λέξη προς λέξη
-            total_score = 0
-            for uw in user_words:
-                best_w_score = max([difflib.SequenceMatcher(None, uw, mw).ratio() for mw in m_words] + [0])
-                total_score += best_w_score
-            score = total_score / len(user_words)
-            
-        if score > 0.65:
-            scored_markets.append((m, score))
-            
+            overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
+            if overall_ratio > 0.7:
+                scored_markets.append((m, overall_ratio))
+                
     scored_markets.sort(key=lambda x: x[1], reverse=True)
     return list(dict.fromkeys([x[0] for x in scored_markets]))[:3]
 
@@ -156,7 +165,6 @@ def render_suggestions(container, input_key, current_value, sugg_func, args):
             container.button(sim, key=f"btn_sugg_{input_key}_{sim}", on_click=update_val, use_container_width=True)
 
 def calc_overall_status(legs_list):
-    """Υπολογίζει αυτόματα τη συνολική κατάσταση από τα σημεία"""
     if not legs_list: return "⚪ Εκκρεμές"
     statuses = [l.get('status', "⚪ Εκκρεμές") for l in legs_list]
     if "🔴 Χαμένο" in statuses: return "🔴 Χαμένο"
