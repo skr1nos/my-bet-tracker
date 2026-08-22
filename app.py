@@ -11,6 +11,7 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
+import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -108,18 +109,20 @@ def get_event_suggestions(user_text, all_events, all_teams):
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
-    """ΝΕΑ ΛΟΓΙΚΗ ΑΓΟΡΑΣ: Αυστηρό ταίριασμα στο όνομα του παίκτη/οντότητας!"""
+    """ΝΕΑ ΑΠΟΛΥΤΗ ΛΟΓΙΚΗ ΑΓΟΡΑΣ: Σπάει σε νούμερα και λέξεις-κλειδιά"""
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     if norm_user in [normalize_greek(m) for m in all_markets]: return []
         
-    ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u'}
+    # Λέξεις που δείχνουν ότι τελείωσε το "Όνομα" του παίκτη/ομάδας
+    break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
     
-    # Λειτουργία που απομονώνει το ΟΝΟΜΑ πριν ξεκινήσουν τα over/under και τα νούμερα
     def get_entity_prefix(text):
+        """Κρατάει μόνο το όνομα (μέχρι να βρει νούμερο ή break word)"""
         words = []
         for w in text.split():
-            if re.match(r'^[\d\.\,]+$', w) or w in ignore_break_words:
+            # Αν η λέξη περιέχει ΕΣΤΩ ΚΑΙ ΕΝΑ ψηφίο (π.χ. 15+, 2.5, 1) ή είναι στοιχηματικός όρος
+            if re.search(r'\d', w) or w in break_words:
                 break
             words.append(w)
         return " ".join(words)
@@ -130,7 +133,7 @@ def get_market_suggestions(user_text, all_markets):
     for m in all_markets:
         norm_m = normalize_greek(m)
         
-        # Αν το περιέχει αυτούσιο, προτεραιότητα
+        # Αν το περιέχει αυτούσιο, έχει προτεραιότητα (π.χ. Σλούκας -> Σλούκας over)
         if norm_user in norm_m:
             scored_markets.append((m, 2.0))
             continue
@@ -140,8 +143,7 @@ def get_market_suggestions(user_text, all_markets):
         if user_prefix and m_prefix:
             prefix_ratio = difflib.SequenceMatcher(None, user_prefix, m_prefix).ratio()
             
-            # ΑΥΣΤΗΡΟΣ ΕΛΕΓΧΟΣ: Το όνομα του παίκτη πρέπει να μοιάζει τουλάχιστον 65%!
-            # Αλλιώς (π.χ. kamilla vs carla) απορρίπτεται απευθείας.
+            # ΑΥΣΤΗΡΟΣ ΕΛΕΓΧΟΣ: Αν τα ονόματα των παικτών/ομάδων διαφέρουν, ΚΟΨΕ το αμέσως!
             if prefix_ratio < 0.65:
                 continue 
             
@@ -149,7 +151,7 @@ def get_market_suggestions(user_text, all_markets):
             scored_markets.append((m, overall_ratio + prefix_ratio))
         else:
             overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
-            if overall_ratio > 0.7:
+            if overall_ratio > 0.75:
                 scored_markets.append((m, overall_ratio))
                 
     scored_markets.sort(key=lambda x: x[1], reverse=True)
