@@ -11,7 +11,6 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -57,6 +56,7 @@ if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_co
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
 if 'show_new_bet_modal' not in st.session_state: st.session_state['show_new_bet_modal'] = False
+if 'active_view' not in st.session_state: st.session_state['active_view'] = None
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -289,8 +289,6 @@ GREEK_COLUMNS = {
 }
 
 st.sidebar.title("🗂️ Μενού Εφαρμογής")
-if st.sidebar.button("➕ Νέο Στοίχημα", type="primary", use_container_width=True):
-    st.session_state['show_new_bet_modal'] = not st.session_state['show_new_bet_modal']
 
 page = st.sidebar.radio("Επίλεξε Σελίδα:", ["🏠 Αρχική & Στατιστικά", "⏳ Εκκρεμή", "📋 Ιστορικό ανά Μήνα", "✏️ Επεξεργασία & Διαγραφή"])
 st.sidebar.markdown("---")
@@ -316,6 +314,11 @@ if selected_sport != "Όλα": filtered_df = filtered_df[filtered_df['Sport'] ==
 if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filtered_df['Type'] == selected_type]
 
 st.title("📈 Στοιχηματικό Dashboard")
+
+st.markdown("<br>", unsafe_allow_html=True)
+if st.button("➕ ΚΑΤΑΧΩΡΗΣΗ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ", type="primary", use_container_width=True):
+    st.session_state['show_new_bet_modal'] = not st.session_state['show_new_bet_modal']
+st.markdown("<br>", unsafe_allow_html=True)
 
 if st.session_state['show_new_bet_modal']:
     with st.container(border=True):
@@ -487,16 +490,28 @@ else:
             win_rate = (len(wl_bets[wl_bets['Profit'] > 0]) / len(wl_bets) * 100) if len(wl_bets) > 0 else 0
             total_bets = len(completed_bets)
 
-            # --- ΥΠΟΛΟΓΙΣΜΟΣ ΔΙΑΦΟΡΑΣ (Δ) ΜΕΣΗΣ ΑΠΟΔΟΣΗΣ ---
             avg_odds = filtered_df['Odds'].mean()
-            odds_delta = None
+            
+            # --- ΥΠΟΛΟΓΙΣΜΟΣ ΔΙΑΦΟΡΩΝ (DELTAS) ΜΕΣΗΣ ΑΠΟΔΟΣΗΣ, ΚΕΡΔΟΥΣ & ROI ---
+            profit_delta, roi_delta, win_rate_delta, odds_delta = None, None, None, None
+
             if len(filtered_df) > 1:
-                # Χωρίς το τελευταίο χρονικά δελτίο
                 temp_df = filtered_df.copy()
                 temp_df['DateTime'] = pd.to_datetime(temp_df['Date'].astype(str) + ' ' + temp_df['Time'].astype(str), errors='coerce')
                 temp_df = temp_df.sort_values(by="DateTime")
-                prev_avg = temp_df.iloc[:-1]['Odds'].mean()
-                odds_delta = avg_odds - prev_avg
+                
+                prev_f = temp_df.iloc[:-1]
+                odds_delta = avg_odds - prev_f['Odds'].mean()
+                profit_delta = total_profit - prev_f['Profit'].sum()
+                
+                prev_c = prev_f[prev_f['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο", "🟡 Cash Out", "🔵 Ακυρωμένο"])]
+                prev_staked = prev_c['Stake'].sum()
+                prev_yield = (prev_f['Profit'].sum() / prev_staked * 100) if prev_staked > 0 else 0
+                roi_delta = yield_pct - prev_yield
+                
+                prev_wl = prev_c[prev_c['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
+                prev_wr = (len(prev_wl[prev_wl['Profit'] > 0]) / len(prev_wl) * 100) if len(prev_wl) > 0 else 0
+                win_rate_delta = win_rate - prev_wr
 
             winning_bets = filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"]
             
@@ -543,21 +558,16 @@ else:
             # --- ΕΜΦΑΝΙΣΗ ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΙ ΚΟΥΜΠΙΩΝ ---
             st.markdown("### 🏆 Στατιστικά Ταμείου")
             col_a, col_b, col_c, col_d = st.columns(4)
-            prof_color = "#4ade80" if total_profit > 0 else "#ff4b4b" if total_profit < 0 else "#ffffff"
+            
+            c_profit_delta = f"{profit_delta:.2f} €" if profit_delta is not None and not pd.isna(profit_delta) and profit_delta != 0 else None
+            c_roi_delta = f"{roi_delta:.2f} %" if roi_delta is not None and not pd.isna(roi_delta) and roi_delta != 0 else None
+            c_wr_delta = f"{win_rate_delta:.1f} %" if win_rate_delta is not None and not pd.isna(win_rate_delta) and win_rate_delta != 0 else None
+            c_odds_delta = f"{odds_delta:.2f}" if odds_delta is not None and not pd.isna(odds_delta) and odds_delta != 0 else None
 
-            col_a.markdown(f"""
-            <div style="background-color: #16263b; border-radius: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
-                <div style="color: #a8dadc; font-size: 14px; margin-bottom: 0.3rem;">Συνολικό Κέρδος</div>
-                <div style="color: {prof_color}; font-size: 1.8rem; font-weight: normal;">{total_profit:.2f} €</div>
-            </div>""", unsafe_allow_html=True)
-
-            col_b.markdown(f"""
-            <div style="background-color: #16263b; border-radius: 10px; padding: 15px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
-                <div style="color: #a8dadc; font-size: 14px; margin-bottom: 0.3rem;">Yield (ROI)</div>
-                <div style="color: {prof_color}; font-size: 1.8rem; font-weight: normal;">{yield_pct:.2f} %</div>
-            </div>""", unsafe_allow_html=True)
-
-            col_c.metric("Win Rate", f"{win_rate:.1f} %")
+            col_a.metric("Συνολικό Κέρδος", f"{total_profit:.2f} €", delta=c_profit_delta)
+            col_b.metric("Yield (ROI)", f"{yield_pct:.2f} %", delta=c_roi_delta)
+            col_c.metric("Win Rate", f"{win_rate:.1f} %", delta=c_wr_delta)
+            
             col_d.metric("Σύνολο Στοιχημάτων", f"{total_bets}")
             if col_d.button("🔍 Προβολή Όλων", use_container_width=True, key="btn_all"): 
                 show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets)
@@ -572,10 +582,7 @@ else:
             if col_f.button("🔍 Προβολή Σερί", use_container_width=True, key="btn_l_streak"): 
                 show_bets_dialog(f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)", df[df['Α/Α'].isin(lose_streak_idx)])
             
-            if odds_delta is not None and not pd.isna(odds_delta) and odds_delta != 0:
-                col_g.metric("Μέση Απόδοση", f"{avg_odds:.2f}", delta=f"{odds_delta:.2f}", delta_color="normal")
-            else:
-                col_g.metric("Μέση Απόδοση", f"{avg_odds:.2f}")
+            col_g.metric("Μέση Απόδοση", f"{avg_odds:.2f}", delta=c_odds_delta, delta_color="normal")
             
             col_h.metric("Μέγιστη Κερδισμένη Απόδοση", f"{max_win_odds:.2f}")
             if col_h.button("🔍 Προβολή Δελτίου", use_container_width=True, key="btn_max_odds"): 
@@ -749,7 +756,8 @@ else:
                 min_w_date = week_df['JustDate'].min().strftime('%d/%m')
                 max_w_date = week_df['JustDate'].max().strftime('%d/%m')
                 
-                st.markdown(f"#### 📅 Εβδομάδα ({min_w_date} - {max_w_date}) | Ταμείο: {wp_emoji} {week_profit:.2f} €")
+                # ΝΕΟ: Εμφάνιση εβδομάδας έτους (π.χ. "34η Εβδομάδα")
+                st.markdown(f"#### 📅 {w}η Εβδομάδα ({min_w_date} - {max_w_date}) | Ταμείο: {wp_emoji} {week_profit:.2f} €")
                 
                 days = sorted(week_df['JustDate'].unique().tolist(), reverse=True)
                 for day in days:
