@@ -22,7 +22,7 @@ try:
 except:
     pass 
 
-# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά 
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -160,12 +160,12 @@ button[kind="secondary"] p {
     width: 100% !important;
 }
 
-/* 🔹 SMART FLOATING EFFECT 🔹 */
+/* 🔹 SMART FLOATING EFFECT (PILL) 🔹 */
 .fab-wrapper {
     position: fixed !important;
     bottom: 30px !important;
     right: 30px !important;
-    z-index: 90 !important; 
+    z-index: 999999 !important; 
     width: auto !important;
     animation: pop-in 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards !important;
 }
@@ -361,6 +361,16 @@ def show_progression_dialog(metric_type, prog_dataframe):
         disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Status': 'Κατάσταση', 'Cumulative_WR': 'Τρέχον Win Rate'}, inplace=True)
         cfg = {
             "Τρέχον Win Rate": st.column_config.NumberColumn("Τρέχον Win Rate (%)", format="%.1f %%"),
+            "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
+        }
+        
+    elif metric_type == "avg_odds":
+        st.markdown("<h3 style='color: #4db8ff;'>⚖️ Εξέλιξη Μέσης Απόδοσης</h3>", unsafe_allow_html=True)
+        disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Odds', 'Cumulative_AvgOdds']].copy()
+        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Odds': 'Απόδοση Δελτίου', 'Cumulative_AvgOdds': 'Τρέχουσα Μέση Απόδοση'}, inplace=True)
+        cfg = {
+            "Τρέχουσα Μέση Απόδοση": st.column_config.NumberColumn("Τρέχουσα Μέση Απόδοση", format="%.2f"),
+            "Απόδοση Δελτίου": st.column_config.NumberColumn("Απόδοση Δελτίου", format="%.2f"),
             "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
         }
         
@@ -624,7 +634,7 @@ GREEK_COLUMNS = {
 }
 
 # ==========================================
-# 🗂️ SIDEBAR REVAMP 
+# 🗂️ SIDEBAR REVAMP
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 page = st.sidebar.radio(
@@ -634,6 +644,7 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.markdown("<div class='sidebar-header'>🛠️ ΕΞΥΠΝΑ ΦΙΛΤΡΑ</div>", unsafe_allow_html=True)
+
 min_d = df['Date'].min() if not df.empty else date.today()
 max_d = df['Date'].max() if not df.empty else date.today()
 date_filter = st.sidebar.date_input("📅 Χρονικό Διάστημα", value=(min_d, max_d), format="DD/MM/YYYY")
@@ -658,7 +669,7 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 # ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
-# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ ---
+# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ (ΜΕ ANCHOR ΓΙΑ ΝΑ ΞΕΡΕΙ ΠΟΤΕ ΝΑ ΑΙΩΡΕΙΤΑΙ) ---
 st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_allow_html=True)
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
@@ -677,7 +688,7 @@ components.html(
         
         buttons.forEach(b => {
             if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {
-                targetBtn = b.closest('div[data-testid="stElementContainer"]');
+                targetBtn = b.closest('div.stButton') || b.closest('div[data-testid="stElementContainer"]');
             }
         });
 
@@ -757,11 +768,14 @@ if page == "📊 Dashboard & Στατιστικά":
         cum_stake = []
         cum_roi = []
         cum_wr = []
+        cum_avg = []
         
         current_p = 0.0
         current_s = 0.0
         current_wl_count = 0
         current_wins = 0
+        cum_o_sum = 0.0
+        cum_o_count = 0
         
         max_win_streak, max_lose_streak = 0, 0
         current_w, current_l = 0, 0
@@ -772,6 +786,8 @@ if page == "📊 Dashboard & Στατιστικά":
             current_p += row['Profit']
             if row['Status'] != "🔵 Ακυρωμένο":
                 current_s += row['Stake']
+                cum_o_sum += row['Odds']
+                cum_o_count += 1
             
             status = row['Status']
             if status in ["🟢 Κερδισμένο", "🔴 Χαμένο"]:
@@ -781,11 +797,13 @@ if page == "📊 Dashboard & Στατιστικά":
             
             c_roi = (current_p / current_s * 100) if current_s > 0 else 0.0
             c_wr = (current_wins / current_wl_count * 100) if current_wl_count > 0 else 0.0
+            c_avg_odds = (cum_o_sum / cum_o_count) if cum_o_count > 0 else 0.0
             
             cum_profit.append(current_p)
             cum_stake.append(current_s)
             cum_roi.append(c_roi)
             cum_wr.append(c_wr)
+            cum_avg.append(c_avg_odds)
 
             if status == "🟢 Κερδισμένο":
                 current_w += 1
@@ -811,6 +829,7 @@ if page == "📊 Dashboard & Στατιστικά":
         prog_df['Cumulative_Stake'] = cum_stake
         prog_df['Cumulative_ROI'] = cum_roi
         prog_df['Cumulative_WR'] = cum_wr
+        prog_df['Cumulative_AvgOdds'] = cum_avg
         prog_df = prog_df.sort_values(by="DateTime", ascending=False)
 
         max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
@@ -859,7 +878,7 @@ if page == "📊 Dashboard & Στατιστικά":
         if odds_delta is not None and not pd.isna(odds_delta) and odds_delta != 0:
             o_delta_str = f"\n( 🟢 +{odds_delta:.2f} )" if odds_delta > 0 else f"\n( 🔴 {odds_delta:.2f} )"
         if col_g.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
-            show_bets_dialog("⚖️ Όλα τα Διευθετημένα Δελτία", completed_bets)
+            show_progression_dialog("avg_odds", prog_df)
         
         if col_h.button(f"Μέγιστη Απόδοση\n{max_win_odds:.2f} 🏆", key="btn_max_odds", use_container_width=True): 
             show_bets_dialog(f"🏆 Δελτίο με Μέγιστη Κερδισμένη Απόδοση ({max_win_odds})", df[df['Α/Α'] == max_win_odds_aa])
