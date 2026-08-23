@@ -22,7 +22,7 @@ try:
 except:
     pass 
 
-# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά 
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -54,15 +54,14 @@ custom_css = """
 /* 🔹 Εισαγωγή της γραμματοσειράς 'Poppins' */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-/* Εφαρμογή της γραμματοσειράς παντού */
-html, body, p, span, div, h1, h2, h3, h4, h5, h6, label, button, input, select, textarea, [class*="css"] {
+/* Εφαρμογή της γραμματοσειράς ΜΟΝΟ σε κείμενα (εξαιρούμε τα εικονίδια της πλατφόρμας) */
+html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p {
     font-family: 'Poppins', sans-serif !important;
 }
 
 /* Βασικό Background */
 .stApp { background-color: #0b172a; }
 [data-testid="stSidebar"] { background-color: #060d1a; border-right: 1px solid #1e3a5f; }
-h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
 
 /* 🔹 Ειδικά στυλ για τους τίτλους του Sidebar */
 .sidebar-header {
@@ -96,7 +95,7 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
 }
 [data-testid="stDialog"] header { background-color: #0b172a !important; }
 
-/* 🔹 Inputs Form (Πιο καθαρά και μοντέρνα κουτάκια) */
+/* 🔹 Inputs Form */
 .stTextInput input, .stNumberInput input, 
 [data-baseweb="select"] > div, 
 .stDateInput input, .stTimeInput input {
@@ -113,7 +112,7 @@ div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within 
     box-shadow: inset 0 0 0 1px #4db8ff !important;
 }
 
-/* 🔹 Κεντρικό Κουμπί Πρωτεύον */
+/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Νέο Στοίχημα, Αποθήκευση) */
 button[kind="primary"] {
     background: linear-gradient(90deg, #10b981, #059669) !important;
     color: white !important;
@@ -129,7 +128,7 @@ button[kind="primary"]:hover {
 }
 button[kind="primary"] * { color: white !important; }
 
-/* 🔹 Δευτερεύοντα Κουμπιά / Στατιστικά (CARDS - ΚΕΝΤΡΑΡΙΣΜΕΝΑ & ΟΜΟΙΟΜΟΡΦΑ) */
+/* 🔹 Δευτερεύοντα Κουμπιά / Στατιστικά (ΚΕΝΤΡΑΡΙΣΜΕΝΑ & ΟΜΟΙΟΜΟΡΦΑ) */
 button[kind="secondary"] {
     background-color: #16263b !important;
     border: 1px solid #1e3a5f !important;
@@ -160,7 +159,7 @@ button[kind="secondary"] p {
     width: 100% !important;
 }
 
-/* 🔹 SMART FLOATING EFFECT (PILL) 🔹 */
+/* 🔹 SMART FLOATING EFFECT (PILL) - Ενεργοποιείται μέσω JS 🔹 */
 .fab-wrapper {
     position: fixed !important;
     bottom: 30px !important;
@@ -644,7 +643,6 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.markdown("<div class='sidebar-header'>🛠️ ΕΞΥΠΝΑ ΦΙΛΤΡΑ</div>", unsafe_allow_html=True)
-
 min_d = df['Date'].min() if not df.empty else date.today()
 max_d = df['Date'].max() if not df.empty else date.today()
 date_filter = st.sidebar.date_input("📅 Χρονικό Διάστημα", value=(min_d, max_d), format="DD/MM/YYYY")
@@ -674,7 +672,7 @@ st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_al
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# JAVASCRIPT: Αμιγώς για το Floating Button
+# 🧠 JAVASCRIPT: Έξυπνος μηχανισμός για το αιωρούμενο (Floating) Κουμπί (PILL)
 components.html(
     """
     <script>
@@ -688,27 +686,25 @@ components.html(
         
         buttons.forEach(b => {
             if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {
-                targetBtn = b.closest('div.stButton') || b.closest('div[data-testid="stElementContainer"]');
+                targetBtn = b.closest('div[data-testid="stElementContainer"]');
             }
         });
 
         if (anchor && targetBtn) {
-            if (!parentWin.isObserving || !parentDoc.contains(anchor)) {
-                if(parentWin.observer) parentWin.observer.disconnect();
-                parentWin.observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            targetBtn.classList.remove('fab-wrapper');
-                        } else {
-                            targetBtn.classList.add('fab-wrapper');
-                        }
-                    });
-                }, { threshold: 0 });
-                parentWin.observer.observe(anchor);
-                parentWin.isObserving = true;
+            const scrollArea = parentDoc.querySelector('.main') || parentDoc.querySelector('[data-testid="stMain"]');
+            
+            if (scrollArea && !scrollArea.hasFabListener) {
+                scrollArea.addEventListener('scroll', function() {
+                    const rect = anchor.getBoundingClientRect();
+                    // Όταν ο anchor φεύγει πάνω από την οθόνη (rect.bottom < 50px), γίνε floating!
+                    if (rect.bottom < 50) {
+                        targetBtn.classList.add('fab-wrapper');
+                    } else {
+                        targetBtn.classList.remove('fab-wrapper');
+                    }
+                });
+                scrollArea.hasFabListener = true;
             }
-        } else {
-            parentWin.isObserving = false;
         }
     };
 
