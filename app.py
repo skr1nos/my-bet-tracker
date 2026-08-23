@@ -22,7 +22,7 @@ try:
 except:
     pass 
 
-# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά (γιατί το Cloud καμιά φορά είναι στα Αγγλικά)
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -303,10 +303,10 @@ def calc_overall_status(legs_list):
 
 
 # ==========================================
-# 🔍 ΣΥΝΑΡΤΗΣΗ ΕΜΦΑΝΙΣΗΣ ΑΠΟΔΕΙΞΗΣ (INLINE)
+# 🔍 ΣΥΝΑΡΤΗΣΕΙΣ ΕΜΦΑΝΙΣΗΣ ΑΠΟΔΕΙΞΗΣ
 # ==========================================
 def show_ticket_details(aa_val):
-    """Εμφανίζει την απόδειξη του δελτίου εντός του τρέχοντος παραθύρου (ΟΧΙ νέο pop-up)"""
+    """Εμφανίζει την απόδειξη του δελτίου (Inline χρήση)"""
     row = df[df['Α/Α'] == aa_val].iloc[0]
     
     status_color = "#4db8ff"
@@ -314,6 +314,9 @@ def show_ticket_details(aa_val):
     elif row['Status'] == "🔴 Χαμένο": status_color = "#ef4444"
     elif row['Status'] == "🟡 Cash Out": status_color = "#f59e0b"
     elif row['Status'] == "🔵 Ακυρωμένο": status_color = "#3b82f6"
+    
+    total_return = row['Stake'] + row['Profit']
+    profit_str = f"+{row['Profit']:.2f} €" if row['Profit'] > 0 else f"{row['Profit']:.2f} €"
     
     st.markdown(f"""
     <div style="background-color: #0f1c2e; padding: 25px; border-radius: 16px; border: 2px solid {status_color}; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
@@ -378,19 +381,29 @@ def show_ticket_details(aa_val):
         <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px dashed #1e3a5f; padding-top: 15px;">
             <div>
                 <p style="margin: 0; font-size: 13px; color: #a8dadc;">Ποντάρισμα</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #ffffff;">{row['Stake']:.2f} €</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">{row['Stake']:.2f} €</p>
             </div>
             <div style="text-align: center;">
-                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Συνολική Απόδοση</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #ffffff;">{row['Odds']:.2f}</p>
+                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Απόδοση</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">{row['Odds']:.2f}</p>
+            </div>
+            <div style="text-align: center;">
+                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Επιστροφή</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">{total_return:.2f} €</p>
             </div>
             <div style="text-align: right;">
-                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Κέρδος / Ζημιά</p>
-                <p style="margin: 0; font-size: 20px; font-weight: 700; color: {status_color};">{row['Profit']:.2f} €</p>
+                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Καθαρό Κέρδος</p>
+                <p style="margin: 0; font-size: 20px; font-weight: 700; color: {status_color};">{profit_str}</p>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+@st.dialog("🧾 Απόδειξη Στοιχήματος", width="large")
+def show_ticket_modal(aa_val):
+    """Εμφανίζει την απόδειξη ως νέο Modal (για χρήση εκτός άλλων Modals)"""
+    show_ticket_details(aa_val)
+
 
 # ==========================================
 # 🔍 ΑΝΑΔΥΟΜΕΝΑ ΠΑΡΑΘΥΡΑ (MODALS) - ΠΙΝΑΚΕΣ
@@ -1163,8 +1176,7 @@ elif page == "🗓️ Μηνιαία Αναφορά":
                     if event.selection.rows:
                         sel_idx = event.selection.rows[0]
                         sel_aa = display_df.iloc[sel_idx]['Α/Α']
-                        st.markdown("---")
-                        show_ticket_details(sel_aa)
+                        show_ticket_modal(sel_aa)
             
             st.markdown("<br>", unsafe_allow_html=True)
 
