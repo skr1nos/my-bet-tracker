@@ -57,7 +57,6 @@ if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_co
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
 if 'show_new_bet_modal' not in st.session_state: st.session_state['show_new_bet_modal'] = False
-if 'active_view' not in st.session_state: st.session_state['active_view'] = None
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -166,6 +165,18 @@ def calc_overall_status(legs_list):
     elif "⚪ Εκκρεμές" in statuses: return "⚪ Εκκρεμές"
     elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
     else: return "🔵 Ακυρωμένο"
+
+# ==========================================
+# 🔍 ΑΝΑΔΥΟΜΕΝΑ ΠΑΡΑΘΥΡΑ (MODALS) ΓΙΑ ΠΙΝΑΚΕΣ
+# ==========================================
+@st.dialog("📊 Προβολή Δελτίων", width="large")
+def show_bets_dialog(title_str, df_to_show):
+    st.markdown(f"### {title_str}")
+    if not df_to_show.empty:
+        disp = df_to_show.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
+        st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
+    else:
+        st.info("Δεν βρέθηκαν δελτία.")
 
 # ==========================================
 # ☁️ ΣΥΝΔΕΣΗ ΜΕ GOOGLE SHEETS
@@ -476,7 +487,17 @@ else:
             win_rate = (len(wl_bets[wl_bets['Profit'] > 0]) / len(wl_bets) * 100) if len(wl_bets) > 0 else 0
             total_bets = len(completed_bets)
 
+            # --- ΥΠΟΛΟΓΙΣΜΟΣ ΔΙΑΦΟΡΑΣ (Δ) ΜΕΣΗΣ ΑΠΟΔΟΣΗΣ ---
             avg_odds = filtered_df['Odds'].mean()
+            odds_delta = None
+            if len(filtered_df) > 1:
+                # Χωρίς το τελευταίο χρονικά δελτίο
+                temp_df = filtered_df.copy()
+                temp_df['DateTime'] = pd.to_datetime(temp_df['Date'].astype(str) + ' ' + temp_df['Time'].astype(str), errors='coerce')
+                temp_df = temp_df.sort_values(by="DateTime")
+                prev_avg = temp_df.iloc[:-1]['Odds'].mean()
+                odds_delta = avg_odds - prev_avg
+
             winning_bets = filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"]
             
             # --- ΥΠΟΛΟΓΙΣΜΟΙ ΓΙΑ ΤΑ ΣΕΡΙ (Κρατάμε τα Α/Α) ---
@@ -519,7 +540,7 @@ else:
             count_void = len(filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"])
             count_pending = len(filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"])
 
-            # --- ΕΜΦΑΝΙΣΗ ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΙ ΚΟΥΜΠΙΩΝ (INTERACTIVE VIEW) ---
+            # --- ΕΜΦΑΝΙΣΗ ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΙ ΚΟΥΜΠΙΩΝ ---
             st.markdown("### 🏆 Στατιστικά Ταμείου")
             col_a, col_b, col_c, col_d = st.columns(4)
             prof_color = "#4ade80" if total_profit > 0 else "#ff4b4b" if total_profit < 0 else "#ffffff"
@@ -538,85 +559,52 @@ else:
 
             col_c.metric("Win Rate", f"{win_rate:.1f} %")
             col_d.metric("Σύνολο Στοιχημάτων", f"{total_bets}")
-            if col_d.button("🔍 Προβολή Όλων", use_container_width=True, key="btn_all"): st.session_state['active_view'] = 'all'
+            if col_d.button("🔍 Προβολή Όλων", use_container_width=True, key="btn_all"): 
+                show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets)
 
             col_e, col_f, col_g, col_h = st.columns(4)
+            
             col_e.metric("Μέγιστο Σερί Νικών", f"{max_win_streak} 🟢")
-            if col_e.button("🔍 Προβολή Σερί", use_container_width=True, key="btn_w_streak"): st.session_state['active_view'] = 'w_streak'
+            if col_e.button("🔍 Προβολή Σερί", use_container_width=True, key="btn_w_streak"): 
+                show_bets_dialog(f"🟢 Μέγιστο Σερί Νικών ({max_win_streak} δελτία)", df[df['Α/Α'].isin(win_streak_idx)])
             
             col_f.metric("Μέγιστο Σερί Ηττών", f"{max_lose_streak} 🔴")
-            if col_f.button("🔍 Προβολή Σερί", use_container_width=True, key="btn_l_streak"): st.session_state['active_view'] = 'l_streak'
+            if col_f.button("🔍 Προβολή Σερί", use_container_width=True, key="btn_l_streak"): 
+                show_bets_dialog(f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)", df[df['Α/Α'].isin(lose_streak_idx)])
             
-            col_g.metric("Μέση Απόδοση", f"{avg_odds:.2f}")
+            if odds_delta is not None and not pd.isna(odds_delta) and odds_delta != 0:
+                col_g.metric("Μέση Απόδοση", f"{avg_odds:.2f}", delta=f"{odds_delta:.2f}", delta_color="normal")
+            else:
+                col_g.metric("Μέση Απόδοση", f"{avg_odds:.2f}")
             
             col_h.metric("Μέγιστη Κερδισμένη Απόδοση", f"{max_win_odds:.2f}")
-            if col_h.button("🔍 Προβολή Δελτίου", use_container_width=True, key="btn_max_odds"): st.session_state['active_view'] = 'max_odds'
+            if col_h.button("🔍 Προβολή Δελτίου", use_container_width=True, key="btn_max_odds"): 
+                show_bets_dialog(f"🏆 Δελτίο με Μέγιστη Κερδισμένη Απόδοση ({max_win_odds})", df[df['Α/Α'] == max_win_odds_aa])
             
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("### 📊 Ανάλυση Αποτελεσμάτων")
             c_w, c_l, c_c, c_v, c_p = st.columns(5)
+            
             c_w.metric("🟢 Κερδισμένα", f"{count_won}")
-            if c_w.button("🔍 Προβολή", use_container_width=True, key="btn_won"): st.session_state['active_view'] = 'won'
+            if c_w.button("🔍 Προβολή", use_container_width=True, key="btn_won"): 
+                show_bets_dialog("🟢 Όλα τα Κερδισμένα", filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"])
             
             c_l.metric("🔴 Χαμένα", f"{count_lost}")
-            if c_l.button("🔍 Προβολή", use_container_width=True, key="btn_lost"): st.session_state['active_view'] = 'lost'
+            if c_l.button("🔍 Προβολή", use_container_width=True, key="btn_lost"): 
+                show_bets_dialog("🔴 Όλα τα Χαμένα", filtered_df[filtered_df['Status'] == "🔴 Χαμένο"])
             
             c_c.metric("🟡 Cash Out", f"{count_cashout}")
-            if c_c.button("🔍 Προβολή", use_container_width=True, key="btn_co"): st.session_state['active_view'] = 'cashout'
+            if c_c.button("🔍 Προβολή", use_container_width=True, key="btn_co"): 
+                show_bets_dialog("🟡 Όλα τα Cash Out", filtered_df[filtered_df['Status'] == "🟡 Cash Out"])
             
             c_v.metric("🔵 Ακυρωμένα", f"{count_void}")
-            if c_v.button("🔍 Προβολή", use_container_width=True, key="btn_void"): st.session_state['active_view'] = 'void'
+            if c_v.button("🔍 Προβολή", use_container_width=True, key="btn_void"): 
+                show_bets_dialog("🔵 Όλα τα Ακυρωμένα", filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"])
             
             c_p.metric("⚪ Εκκρεμή", f"{count_pending}")
-            if c_p.button("🔍 Προβολή", use_container_width=True, key="btn_pending"): st.session_state['active_view'] = 'pending'
+            if c_p.button("🔍 Προβολή", use_container_width=True, key="btn_pending"): 
+                show_bets_dialog("⚪ Όλα τα Εκκρεμή", filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"])
 
-            # --- ΠΡΟΒΟΛΗ ΖΩΝΤΑΝΟΥ ΠΙΝΑΚΑ ΟΤΑΝ ΠΑΤΑΕΙ ΤΑ ΚΟΥΜΠΙΑ ---
-            view = st.session_state.get('active_view', None)
-            if view:
-                st.markdown("---")
-                col_title, col_close = st.columns([0.85, 0.15])
-                view_df = pd.DataFrame()
-                title_str = ""
-                
-                if view == 'all':
-                    view_df = completed_bets
-                    title_str = "📋 Όλα τα Διευθετημένα Δελτία"
-                elif view == 'w_streak':
-                    view_df = df[df['Α/Α'].isin(win_streak_idx)]
-                    title_str = f"🟢 Μέγιστο Σερί Νικών ({max_win_streak} δελτία)"
-                elif view == 'l_streak':
-                    view_df = df[df['Α/Α'].isin(lose_streak_idx)]
-                    title_str = f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)"
-                elif view == 'max_odds':
-                    view_df = df[df['Α/Α'] == max_win_odds_aa]
-                    title_str = f"🏆 Δελτίο με Μέγιστη Κερδισμένη Απόδοση ({max_win_odds})"
-                elif view == 'won':
-                    view_df = filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"]
-                    title_str = "🟢 Όλα τα Κερδισμένα"
-                elif view == 'lost':
-                    view_df = filtered_df[filtered_df['Status'] == "🔴 Χαμένο"]
-                    title_str = "🔴 Όλα τα Χαμένα"
-                elif view == 'cashout':
-                    view_df = filtered_df[filtered_df['Status'] == "🟡 Cash Out"]
-                    title_str = "🟡 Όλα τα Cash Out"
-                elif view == 'void':
-                    view_df = filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένα"]
-                    title_str = "🔵 Όλα τα Ακυρωμένα"
-                elif view == 'pending':
-                    view_df = filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"]
-                    title_str = "⚪ Όλα τα Εκκρεμή"
-
-                col_title.markdown(f"#### {title_str}")
-                if col_close.button("❌ Κλείσιμο Προβολής", key="close_view"):
-                    st.session_state['active_view'] = None
-                    st.rerun()
-                    
-                if not view_df.empty:
-                    disp = view_df.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
-                    st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
-                else:
-                    st.info("Δεν βρέθηκαν δελτία για αυτή την κατηγορία.")
-            
             st.markdown("---")
             col_chart1, col_chart2 = st.columns(2)
             
