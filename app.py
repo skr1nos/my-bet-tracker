@@ -301,11 +301,12 @@ def calc_overall_status(legs_list):
     elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
     else: return "🔵 Ακυρωμένο"
 
+
 # ==========================================
-# 🔍 ΑΝΑΔΥΟΜΕΝΑ ΠΑΡΑΘΥΡΑ (MODALS) 
+# 🔍 ΣΥΝΑΡΤΗΣΗ ΕΜΦΑΝΙΣΗΣ ΑΠΟΔΕΙΞΗΣ (INLINE)
 # ==========================================
-@st.dialog("🧾 Απόδειξη Στοιχήματος", width="large")
 def show_ticket_details(aa_val):
+    """Εμφανίζει την απόδειξη του δελτίου εντός του τρέχοντος παραθύρου (ΟΧΙ νέο pop-up)"""
     row = df[df['Α/Α'] == aa_val].iloc[0]
     
     status_color = "#4db8ff"
@@ -391,7 +392,9 @@ def show_ticket_details(aa_val):
     </div>
     """, unsafe_allow_html=True)
 
-
+# ==========================================
+# 🔍 ΑΝΑΔΥΟΜΕΝΑ ΠΑΡΑΘΥΡΑ (MODALS) - ΠΙΝΑΚΕΣ
+# ==========================================
 @st.dialog("📊 Λεπτομέρειες", width="large")
 def show_bets_dialog(title_str, df_to_show):
     st.markdown(f"<h3 style='color: #4db8ff;'>{title_str}</h3>", unsafe_allow_html=True)
@@ -399,9 +402,11 @@ def show_bets_dialog(title_str, df_to_show):
     if not df_to_show.empty:
         disp = df_to_show.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
         event = st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row")
+        
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
+            st.markdown("---")
             show_ticket_details(sel_aa)
     else:
         st.info("Δεν βρέθηκαν δελτία.")
@@ -456,9 +461,11 @@ def show_progression_dialog(metric_type, prog_dataframe):
         }
         
     event = st.dataframe(disp_df, use_container_width=True, hide_index=True, column_config=cfg, on_select="rerun", selection_mode="single-row")
+    
     if event.selection.rows:
         sel_idx = event.selection.rows[0]
         sel_aa = disp_df.iloc[sel_idx]['Α/Α']
+        st.markdown("---")
         show_ticket_details(sel_aa)
 
 @st.dialog("➕ Καταχώρηση Νέου Δελτίου", width="large")
@@ -754,12 +761,12 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 # ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
-# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ ---
+# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ (ΜΕ ANCHOR ΓΙΑ ΝΑ ΞΕΡΕΙ ΠΟΤΕ ΝΑ ΑΙΩΡΕΙΤΑΙ) ---
 st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_allow_html=True)
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# JAVASCRIPT: Έξυπνος μηχανισμός για το αιωρούμενο (Floating) Κουμπί (PILL)
+# 🧠 JAVASCRIPT: Έξυπνος μηχανισμός για το αιωρούμενο (Floating) Κουμπί (PILL)
 components.html(
     """
     <script>
@@ -773,7 +780,7 @@ components.html(
         
         buttons.forEach(b => {
             if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {
-                targetBtn = b.closest('div[data-testid="stElementContainer"]');
+                targetBtn = b.closest('div.stButton') || b.closest('div[data-testid="stElementContainer"]');
             }
         });
 
@@ -1156,6 +1163,7 @@ elif page == "🗓️ Μηνιαία Αναφορά":
                     if event.selection.rows:
                         sel_idx = event.selection.rows[0]
                         sel_aa = display_df.iloc[sel_idx]['Α/Α']
+                        st.markdown("---")
                         show_ticket_details(sel_aa)
             
             st.markdown("<br>", unsafe_allow_html=True)
