@@ -15,11 +15,18 @@ import difflib
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
 
-# Ρύθμιση για Ελληνικά
+# Ρύθμιση για Ελληνικά (Fallback)
 try:
     locale.setlocale(locale.LC_TIME, 'el_GR.UTF-8')
 except:
     pass 
+
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά (γιατί το Cloud καμιά φορά είναι στα Αγγλικά)
+GREEK_MONTHS = {
+    1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
+    5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
+    9: "Σεπτέμβριος", 10: "Οκτώβριος", 11: "Νοέμβριος", 12: "Δεκέμβριος"
+}
 
 EXPECTED_COLS = ['Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Status', 'Profit', 'Legs_Data']
 DISPLAY_ORDER = ['Α/Α', 'Status', 'Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Profit']
@@ -39,7 +46,7 @@ SPORT_ICONS = {
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
-# 🎨 PREMIUM UI CSS (ΤΕΛΟΣ ΣΤΑ ΚΟΚΚΙΝΑ ΠΛΑΙΣΙΑ & ΝΕΟ SIDEBAR)
+# 🎨 PREMIUM UI CSS 
 # ==========================================
 custom_css = """
 <style>
@@ -156,7 +163,6 @@ if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_co
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
 if 'show_new_bet_modal' not in st.session_state: st.session_state['show_new_bet_modal'] = False
-if 'active_view' not in st.session_state: st.session_state['active_view'] = None
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -389,7 +395,7 @@ GREEK_COLUMNS = {
 }
 
 # ==========================================
-# 🗂️ SIDEBAR REVAMP
+# 🗂️ SIDEBAR
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 page = st.sidebar.radio(
@@ -455,7 +461,6 @@ if st.session_state['show_new_bet_modal']:
         legs = []
         event_str, market_str = "", ""
         auto_odds = 1.0
-        st.markdown("---")
         
         if bet_type == "Μονό":
             st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Αγώνας & Αγορά</h5>", unsafe_allow_html=True)
@@ -762,7 +767,7 @@ else:
                 st.markdown("### 🗓️ Ταμείο ανά Μήνα")
                 monthly_df = completed_bets.copy()
                 if not monthly_df.empty:
-                    monthly_df['MonthStr'] = pd.to_datetime(monthly_df['Date']).dt.strftime('%m/%Y')
+                    monthly_df['MonthStr'] = pd.to_datetime(monthly_df['Date']).apply(lambda x: f"{GREEK_MONTHS[x.month]} {x.year}")
                     monthly_df['Month_Sort'] = pd.to_datetime(monthly_df['Date']).dt.strftime('%Y-%m')
                     
                     monthly_group = monthly_df.groupby(['Month_Sort', 'MonthStr'])['Profit'].sum().reset_index()
@@ -824,7 +829,7 @@ else:
             month_options = {}
             for m in months:
                 dt_obj = datetime.strptime(m, '%Y-%m')
-                m_name = dt_obj.strftime('%B %Y').capitalize()
+                m_name = f"{GREEK_MONTHS[dt_obj.month]} {dt_obj.year}"
                 month_options[m_name] = m
                 
             selected_month_name = st.selectbox("🗓️ Επίλεξε Μήνα προς προβολή:", list(month_options.keys()))
@@ -844,13 +849,24 @@ else:
             c1.metric("Συνολικό Ταμείο", f"{month_profit:.2f} €")
             
             if best_day is not None and worst_day is not None:
-                c2.metric("🟢 Πιο Κερδοφόρα", f"{best_day['JustDate'].strftime('%d/%m')} ({best_day['Profit']:.2f} €)")
-                c3.metric("🔴 Χειρότερη Μέρα", f"{worst_day['JustDate'].strftime('%d/%m')} ({worst_day['Profit']:.2f} €)")
+                best_date_str = best_day['JustDate'].strftime('%d/%m')
+                c2.metric("🟢 Πιο Κερδοφόρα", f"{best_date_str} ({best_day['Profit']:.2f} €)")
+                if c2.button("🔍 Προβολή", use_container_width=True, key=f"btn_best_day"):
+                    best_df = month_df[month_df['JustDate'] == best_day['JustDate']]
+                    show_bets_dialog(f"🟢 Πιο Κερδοφόρα Μέρα ({best_date_str})", best_df)
+                    
+                worst_date_str = worst_day['JustDate'].strftime('%d/%m')
+                c3.metric("🔴 Χειρότερη Μέρα", f"{worst_date_str} ({worst_day['Profit']:.2f} €)")
+                if c3.button("🔍 Προβολή", use_container_width=True, key=f"btn_worst_day"):
+                    worst_df = month_df[month_df['JustDate'] == worst_day['JustDate']]
+                    show_bets_dialog(f"🔴 Χειρότερη Μέρα ({worst_date_str})", worst_df)
             else:
                 c2.metric("🟢 Πιο Κερδοφόρα", "-")
                 c3.metric("🔴 Χειρότερη Μέρα", "-")
                 
             c4.metric("Σύνολο Δελτίων", f"{len(month_df)}")
+            if c4.button("🔍 Προβολή Μήνα", use_container_width=True, key="btn_all_month"):
+                show_bets_dialog(f"🗓️ Όλα τα Δελτία ({selected_month_name})", month_df)
             
             st.markdown("---")
             
@@ -871,7 +887,7 @@ else:
                 for day in days:
                     day_df = week_df[week_df['JustDate'] == day]
                     day_profit = day_df['Profit'].sum()
-                    day_str = day.strftime('%d %B %Y') 
+                    day_str = f"{day.day} {GREEK_MONTHS[day.month]} {day.year}"
                     
                     if day_profit > 0: d_emoji = "🟢"; d_prof_str = f"+{day_profit:.2f}"
                     elif day_profit < 0: d_emoji = "🔴"; d_prof_str = f"{day_profit:.2f}"
