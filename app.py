@@ -22,7 +22,7 @@ try:
 except:
     pass 
 
-# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά (γιατί το Cloud καμιά φορά είναι στα Αγγλικά)
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -80,7 +80,7 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Modal Background (για να μην είναι λευκό το Pop-up) */
+/* Modal Background */
 [data-testid="stDialog"] > div {
     background-color: #0b172a !important;
     border-radius: 20px !important;
@@ -88,7 +88,7 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
 }
 [data-testid="stDialog"] header { background-color: #0b172a !important; }
 
-/* 🔹 Inputs Form (Κουτάκια συμπλήρωσης & Dropdowns) */
+/* 🔹 Inputs Form */
 .stTextInput input, .stNumberInput input, 
 [data-baseweb="select"] > div, 
 .stDateInput input, .stTimeInput input {
@@ -98,13 +98,12 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     border-radius: 8px !important;
 }
 
-/* 🔵 Αλλαγή του focus ring από κόκκινο σε γαλάζιο */
 div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within {
     border-color: #4db8ff !important;
     box-shadow: inset 0 0 0 1px #4db8ff !important;
 }
 
-/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Αρχική Μορφή - Inline) */
+/* 🔹 Κεντρικό Κουμπί Πρωτεύον */
 button[kind="primary"] {
     background: linear-gradient(90deg, #10b981, #059669) !important;
     color: white !important;
@@ -120,7 +119,7 @@ button[kind="primary"]:hover {
 }
 button[kind="primary"] * { color: white !important; }
 
-/* 🔹 Δευτερεύοντα Κουμπιά / Στατιστικά (CARDS) */
+/* 🔹 Δευτερεύοντα Κουμπιά / Στατιστικά (CARDS - ΚΕΝΤΡΑΡΙΣΜΕΝΑ & ΟΜΟΙΟΜΟΡΦΑ) */
 button[kind="secondary"] {
     background-color: #16263b !important;
     border: 1px solid #1e3a5f !important;
@@ -129,11 +128,10 @@ button[kind="secondary"] {
     width: 100% !important;
     height: auto !important;
     min-height: 90px !important;
-    text-align: left !important;
     display: flex !important;
     flex-direction: column !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
+    align-items: center !important;  /* Κεντράρισμα Οριζόντια */
+    justify-content: center !important; /* Κεντράρισμα Κάθετα */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
     transition: all 0.2s ease !important;
 }
@@ -148,10 +146,11 @@ button[kind="secondary"] p {
     color: #ffffff !important;
     margin: 0 !important;
     line-height: 1.5 !important;
-    text-align: left !important;
+    text-align: center !important;  /* Κεντράρισμα κειμένου */
+    width: 100% !important;
 }
 
-/* 🔹 SMART FLOATING EFFECT (Όταν Σκρολάρεις) 🔹 */
+/* 🔹 SMART FLOATING EFFECT 🔹 */
 .fab-wrapper {
     position: fixed !important;
     bottom: 30px !important;
@@ -180,12 +179,14 @@ button[kind="secondary"] p {
 
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
 
-div[role="radiogroup"] label {
-    background-color: #16263b;
-    padding: 5px 15px;
-    border-radius: 8px;
-    border: 1px solid #1e3a5f;
-    margin-right: 10px;
+/* 🔹 ΜΕΝΟΥ ΠΛΟΗΓΗΣΗΣ (RADIO BUTTONS) - ΠΕΡΙΣΣΟΤΕΡΟΣ ΧΩΡΟΣ */
+div[role="radiogroup"] > label {
+    background-color: #16263b !important;
+    padding: 12px 15px !important; /* Περισσότερο εσωτερικό κενό (ανάσα) */
+    border-radius: 8px !important;
+    border: 1px solid #1e3a5f !important;
+    margin-bottom: 12px !important; /* Περισσότερο εξωτερικό κενό ανάμεσα στα κουμπιά */
+    cursor: pointer;
 }
 </style>
 """
@@ -194,7 +195,6 @@ st.markdown(custom_css, unsafe_allow_html=True)
 if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_counter'] = 0
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
-if 'show_new_bet_modal' not in st.session_state: st.session_state['show_new_bet_modal'] = False
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -247,19 +247,16 @@ def get_event_suggestions(user_text, all_events, all_teams):
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
-    """ΝΕΑ ΑΠΟΛΥΤΗ ΛΟΓΙΚΗ ΑΓΟΡΑΣ: Σπάει σε νούμερα και λέξεις-κλειδιά"""
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     if norm_user in [normalize_greek(m) for m in all_markets]: return []
         
-    # Λέξεις που δείχνουν ότι τελείωσε το "Όνομα" του παίκτη/ομάδας
-    break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
+    ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
     
     def get_entity_prefix(text):
         words = []
         for w in text.split():
-            # Αν η λέξη περιέχει ΕΣΤΩ ΚΑΙ ΕΝΑ ψηφίο (π.χ. 15+, 2.5, 1) ή είναι στοιχηματικός όρος
-            if re.search(r'\d', w) or w in break_words:
+            if re.search(r'\d', w) or w in ignore_break_words:
                 break
             words.append(w)
         return " ".join(words)
@@ -617,7 +614,7 @@ GREEK_COLUMNS = {
 }
 
 # ==========================================
-# 🗂️ SIDEBAR REVAMP & KEYBOARD SHORTCUT
+# 🗂️ SIDEBAR REVAMP 
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 page = st.sidebar.radio(
@@ -637,10 +634,6 @@ selected_sport = st.sidebar.selectbox("🎯 Άθλημα", sports_list)
 types_list = ["Όλοι οι Τύποι"] + sorted(df['Type'].dropna().astype(str).unique().tolist())
 selected_type = st.sidebar.selectbox("🎫 Τύπος Συστήματος", types_list)
 
-st.sidebar.markdown("<div class='sidebar-header'>⌨️ ΣΥΝΤΟΜΕΥΣΗ ΠΛΗΚΤΡΟΛΟΓΙΟΥ</div>", unsafe_allow_html=True)
-shortcut_key = st.sidebar.text_input("Πλήκτρο για Νέο Στοίχημα:", value="+", max_chars=1)
-st.sidebar.info("💡 Κάνε κλικ στο κενό φόντο και πάτα το σύμβολο για γρήγορη καταχώρηση!")
-
 filtered_df = df.copy()
 if len(date_filter) == 2:
     filtered_df = filtered_df[(filtered_df['Date'] >= date_filter[0]) & (filtered_df['Date'] <= date_filter[1])]
@@ -655,89 +648,52 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 # ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
-# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ ---
+# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ (ΜΕ ANCHOR ΓΙΑ ΝΑ ΞΕΡΕΙ ΠΟΤΕ ΝΑ ΑΙΩΡΕΙΤΑΙ) ---
 st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_allow_html=True)
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# 🧠 JAVASCRIPT GHOST HACK: ΑΙΩΡΗΣΗ & SHORTCUT MAZI!
+# JAVASCRIPT: Intersection Observer (Αφαίρεση Shortcut)
 components.html(
-    f"""
+    """
     <script>
     const parentWin = window.parent;
     const parentDoc = parentWin.document;
 
-    // 1. Floating Button Observer
-    const setupObserver = function() {{
+    const setupObserver = function() {
         const anchor = parentDoc.getElementById('bet-button-anchor');
         const buttons = parentDoc.querySelectorAll('button');
         let targetBtn = null;
         
-        buttons.forEach(b => {{
-            if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {{
+        buttons.forEach(b => {
+            if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {
                 targetBtn = b.closest('div[data-testid="stElementContainer"]');
-            }}
-        }});
+            }
+        });
 
-        if (anchor && targetBtn) {{
-            if (!parentWin.isObserving || !parentDoc.contains(anchor)) {{
+        if (anchor && targetBtn) {
+            if (!parentWin.isObserving || !parentDoc.contains(anchor)) {
                 if(parentWin.observer) parentWin.observer.disconnect();
-                parentWin.observer = new IntersectionObserver((entries) => {{
-                    entries.forEach(entry => {{
-                        if (entry.isIntersecting) {{
+                parentWin.observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
                             targetBtn.classList.remove('fab-wrapper');
-                        }} else {{
+                        } else {
                             targetBtn.classList.add('fab-wrapper');
-                        }}
-                    }});
-                }}, {{ threshold: 0 }});
+                        }
+                    });
+                }, { threshold: 0 });
                 parentWin.observer.observe(anchor);
                 parentWin.isObserving = true;
-            }}
-        }} else {{
+            }
+        } else {
             parentWin.isObserving = false;
-        }}
-    }};
+        }
+    };
 
-    const domObserver = new MutationObserver(() => {{ setupObserver(); }});
-    domObserver.observe(parentDoc.body, {{ childList: true, subtree: true }});
+    const domObserver = new MutationObserver(() => { setupObserver(); });
+    domObserver.observe(parentDoc.body, { childList: true, subtree: true });
     setupObserver(); 
-
-    // 2. Keyboard Shortcut Listener (ΝΕΑ NATIVE ΕΚΔΟΣΗ)
-    parentDoc.setAttribute('data-bet-shortcut', '{shortcut_key}'.trim().toLowerCase());
-
-    if (!parentWin.shortcut_listener_active) {{
-        parentWin.addEventListener('keyup', function(e) {{
-            const activeElem = parentDoc.activeElement;
-            const activeTag = activeElem ? activeElem.tagName.toLowerCase() : '';
-            
-            // Αγνοούμε αν ο χρήστης γράφει κάπου (πρέπει να κάνει κλικ έξω πρώτα)
-            if (activeTag === 'input' || activeTag === 'textarea') return;
-            
-            const currentShortcut = parentDoc.getAttribute('data-bet-shortcut');
-            if (currentShortcut && e.key.toLowerCase() === currentShortcut) {{
-                const buttons = parentDoc.querySelectorAll('button');
-                let targetBtn = null;
-                for(let b of buttons) {{
-                    if(b.innerText.includes('ΝΕΟ ΣΤΟΙΧΗΜΑ')) {{
-                        targetBtn = b;
-                        break;
-                    }}
-                }}
-                
-                if (targetBtn) {{
-                    // Στέλνουμε πραγματικό click event που "ξεγελάει" το React!
-                    targetBtn.dispatchEvent(new MouseEvent('click', {{
-                        bubbles: true,
-                        cancelable: true,
-                        view: parentWin
-                    }}));
-                    e.preventDefault();
-                }}
-            }}
-        }});
-        parentWin.shortcut_listener_active = true;
-    }}
     </script>
     """,
     height=0
@@ -862,19 +818,19 @@ if page == "📊 Dashboard & Στατιστικά":
         
         p_delta_str = ""
         if profit_delta is not None and not pd.isna(profit_delta) and profit_delta != 0:
-            p_delta_str = f"  ( 🟢 +{profit_delta:.2f} € )" if profit_delta > 0 else f"  ( 🔴 {profit_delta:.2f} € )"
+            p_delta_str = f"\n( 🟢 +{profit_delta:.2f} € )" if profit_delta > 0 else f"\n( 🔴 {profit_delta:.2f} € )"
         if col_a.button(f"Συνολικό Κέρδος\n{total_profit:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
             show_progression_dialog("profit", prog_df)
 
         r_delta_str = ""
         if roi_delta is not None and not pd.isna(roi_delta) and roi_delta != 0:
-            r_delta_str = f"  ( 🟢 +{roi_delta:.2f} % )" if roi_delta > 0 else f"  ( 🔴 {roi_delta:.2f} % )"
+            r_delta_str = f"\n( 🟢 +{roi_delta:.2f} % )" if roi_delta > 0 else f"\n( 🔴 {roi_delta:.2f} % )"
         if col_b.button(f"Yield (ROI)\n{yield_pct:.2f} %{r_delta_str}", key="btn_roi", use_container_width=True):
             show_progression_dialog("roi", prog_df)
 
         w_delta_str = ""
         if win_rate_delta is not None and not pd.isna(win_rate_delta) and win_rate_delta != 0:
-            w_delta_str = f"  ( 🟢 +{win_rate_delta:.1f} % )" if win_rate_delta > 0 else f"  ( 🔴 {win_rate_delta:.1f} % )"
+            w_delta_str = f"\n( 🟢 +{win_rate_delta:.1f} % )" if win_rate_delta > 0 else f"\n( 🔴 {win_rate_delta:.1f} % )"
         if col_c.button(f"Win Rate\n{win_rate:.1f} %{w_delta_str}", key="btn_wr", use_container_width=True):
             show_progression_dialog("wr", prog_df)
         
@@ -891,7 +847,7 @@ if page == "📊 Dashboard & Στατιστικά":
         
         o_delta_str = ""
         if odds_delta is not None and not pd.isna(odds_delta) and odds_delta != 0:
-            o_delta_str = f"  ( 🟢 +{odds_delta:.2f} )" if odds_delta > 0 else f"  ( 🔴 {odds_delta:.2f} )"
+            o_delta_str = f"\n( 🟢 +{odds_delta:.2f} )" if odds_delta > 0 else f"\n( 🔴 {odds_delta:.2f} )"
         if col_g.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
             show_bets_dialog("⚖️ Όλα τα Διευθετημένα Δελτία", completed_bets)
         
