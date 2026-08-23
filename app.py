@@ -47,7 +47,7 @@ SPORT_ICONS = {
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
-# 🎨 PREMIUM UI CSS & FLOATING BUTTON STYLE
+# 🎨 PREMIUM UI CSS & SMART FLOATING BUTTON
 # ==========================================
 custom_css = """
 <style>
@@ -106,7 +106,7 @@ div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within 
     box-shadow: inset 0 0 0 1px #4db8ff !important;
 }
 
-/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Αποθήκευση) */
+/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Αρχική Μορφή - Inline) */
 button[kind="primary"] {
     background: linear-gradient(90deg, #10b981, #059669) !important;
     color: white !important;
@@ -153,44 +153,35 @@ button[kind="secondary"] p {
     text-align: left !important;
 }
 
-/* 🔹 ΕΙΔΙΚΟ STYLING ΓΙΑ ΤΟ FLOATING BUTTON (ΝΕΟ ΣΤΟΙΧΗΜΑ) 🔹 */
+/* 🔹 SMART FLOATING EFFECT (Όταν Σκρολάρεις) 🔹 */
 .fab-wrapper {
     position: fixed !important;
-    bottom: 40px !important;
-    right: 40px !important;
-    z-index: 999999 !important;
+    bottom: 30px !important;
+    right: 30px !important;
+    z-index: 90 !important; /* Πίσω από το sidebar αν ανοίξει */
     width: auto !important;
+    animation: pop-in 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards !important;
 }
 
-.fab-button {
-    background: linear-gradient(135deg, #0284c7, #10b981) !important; /* Premium Γαλάζιο-Πράσινο Gradient */
-    border-radius: 50px !important; /* Τέλειο Οβάλ */
-    padding: 16px 36px !important;
-    border: none !important;
+@keyframes pop-in {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.fab-wrapper button {
+    width: auto !important;
+    border-radius: 50px !important; /* Στρογγυλεμένο Pill */
+    padding: 15px 30px !important;
+    background: linear-gradient(135deg, #0284c7, #10b981) !important;
     box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4), 0 4px 10px rgba(0,0,0,0.2) !important;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
 }
-.fab-button:hover {
-    transform: translateY(-5px) scale(1.03) !important;
+.fab-wrapper button:hover {
+    transform: translateY(-5px) scale(1.05) !important;
     box-shadow: 0 15px 35px rgba(16, 185, 129, 0.5), 0 6px 15px rgba(0,0,0,0.3) !important;
-    background: linear-gradient(135deg, #0369a1, #059669) !important;
-}
-.fab-button p {
-    font-size: 17px !important;
-    font-weight: 700 !important;
-    letter-spacing: 1px !important;
-    color: white !important;
-    margin: 0 !important;
 }
 
 /* Διαχωριστικές Γραμμές */
-hr {
-    border-color: #1e3a5f !important;
-    margin: 1.5em 0 !important;
-}
+hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
 
 /* Ράδιο Μπάτον */
 div[role="radiogroup"] label {
@@ -207,6 +198,7 @@ st.markdown(custom_css, unsafe_allow_html=True)
 if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_counter'] = 0
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
+if 'show_new_bet_modal' not in st.session_state: st.session_state['show_new_bet_modal'] = False
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -621,33 +613,55 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 # ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
-# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ ---
-if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", key="fab_new_bet"):
+# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ (ΜΕ ANCHOR ΓΙΑ ΝΑ ΞΕΡΕΙ ΠΟΤΕ ΝΑ ΑΙΩΡΕΙΤΑΙ) ---
+st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_allow_html=True)
+if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# JAVASCRIPT GHOST HACK: Μετατρέπει το κουμπί σε Floating (Αιωρούμενο) προσθέτοντας τα σωστά CSS classes!
+# JAVASCRIPT: Έξυπνος Μηχανισμός Intersection Observer
 components.html(
     """
     <script>
     const targetNode = window.parent.document.body;
-    const config = { childList: true, subtree: true };
+    let observer = null;
+    let isObserving = false;
 
-    const callback = function(mutationsList, observer) {
+    const setupObserver = function() {
+        const anchor = window.parent.document.getElementById('bet-button-anchor');
         const buttons = window.parent.document.querySelectorAll('button');
+        let targetBtn = null;
+        
         buttons.forEach(b => {
-            if (b.innerText.includes('ΝΕΟ ΣΤΟΙΧΗΜΑ')) {
-                let wrapper = b.closest('div[data-testid="stElementContainer"]');
-                if(wrapper && !wrapper.classList.contains('fab-wrapper')) {
-                    wrapper.classList.add('fab-wrapper');
-                    b.classList.add('fab-button');
-                }
+            if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {
+                targetBtn = b.closest('div[data-testid="stElementContainer"]');
             }
         });
+
+        if (anchor && targetBtn) {
+            if (!isObserving || !window.parent.document.contains(anchor)) {
+                if(observer) observer.disconnect();
+                
+                observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            targetBtn.classList.remove('fab-wrapper');
+                        } else {
+                            targetBtn.classList.add('fab-wrapper');
+                        }
+                    });
+                }, { threshold: 0 });
+                
+                observer.observe(anchor);
+                isObserving = true;
+            }
+        } else {
+            isObserving = false;
+        }
     };
 
-    const observer = new MutationObserver(callback);
-    observer.observe(targetNode, config);
-    callback(); // First run
+    const domObserver = new MutationObserver(() => { setupObserver(); });
+    domObserver.observe(targetNode, { childList: true, subtree: true });
+    setupObserver(); // First run
     </script>
     """,
     height=0
