@@ -39,14 +39,27 @@ SPORT_ICONS = {
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
-# 🎨 PREMIUM UI CSS (ΤΕΛΟΣ ΣΤΑ ΚΟΚΚΙΝΑ ΠΛΑΙΣΙΑ)
+# 🎨 PREMIUM UI CSS (ΤΕΛΟΣ ΣΤΑ ΚΟΚΚΙΝΑ ΠΛΑΙΣΙΑ & ΝΕΟ SIDEBAR)
 # ==========================================
 custom_css = """
 <style>
 /* Βασικό Background */
 .stApp { background-color: #0b172a; }
-[data-testid="stSidebar"] { background-color: #060d1a; }
+[data-testid="stSidebar"] { background-color: #060d1a; border-right: 1px solid #1e3a5f; }
 h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
+
+/* 🔹 Ειδικά στυλ για τους τίτλους του Sidebar */
+.sidebar-header {
+    font-size: 0.8rem;
+    color: #4db8ff;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #1e3a5f;
+    padding-bottom: 8px;
+}
 
 /* Metrics / Στατιστικά Κουτάκια */
 [data-testid="stMetric"] { 
@@ -71,7 +84,7 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     padding: 15px;
 }
 [data-testid="stVerticalBlockBorderWrapper"]:hover, [data-testid="stVerticalBlockBorderWrapper"]:focus-within {
-    border: 1px solid #4db8ff !important; /* Γαλάζιο στο focus, ΟΧΙ κόκκινο */
+    border: 1px solid #4db8ff !important;
 }
 
 /* 🔹 Inputs Form (Κουτάκια συμπλήρωσης & Dropdowns) */
@@ -90,7 +103,7 @@ div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within 
     box-shadow: inset 0 0 0 1px #4db8ff !important;
 }
 
-/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Αποθήκευση, Νέο Στοίχημα) - ΑΠΟΛΥΤΟ ΠΡΑΣΙΝΟ */
+/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Αποθήκευση, Νέο Στοίχημα) */
 button[kind="primary"] {
     background: linear-gradient(90deg, #10b981, #059669) !important;
     color: white !important;
@@ -127,7 +140,7 @@ hr {
     margin: 1.5em 0 !important;
 }
 
-/* Ράδιο Μπάτον (Επιλογή Μονού/Παρολί κλπ) */
+/* Ράδιο Μπάτον */
 div[role="radiogroup"] label {
     background-color: #16263b;
     padding: 5px 15px;
@@ -143,6 +156,7 @@ if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_co
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
 if 'show_new_bet_modal' not in st.session_state: st.session_state['show_new_bet_modal'] = False
+if 'active_view' not in st.session_state: st.session_state['active_view'] = None
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -374,21 +388,27 @@ GREEK_COLUMNS = {
     "Profit": st.column_config.NumberColumn("Κέρδος / Ζημιά", format="%.2f €")
 }
 
-st.sidebar.title("🗂️ Μενού Εφαρμογής")
+# ==========================================
+# 🗂️ SIDEBAR REVAMP
+# ==========================================
+st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
+page = st.sidebar.radio(
+    "",
+    ["📊 Dashboard & Στατιστικά", "⚡ Ανοιχτά Δελτία (Εκκρεμή)", "🗓️ Μηνιαία Αναφορά", "⚙️ Διαχείριση Ιστορικού"],
+    label_visibility="collapsed"
+)
 
-page = st.sidebar.radio("Επίλεξε Σελίδα:", ["🏠 Αρχική & Στατιστικά", "⏳ Εκκρεμή", "📋 Ιστορικό ανά Μήνα", "✏️ Επεξεργασία & Διαγραφή"])
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔍 Γενικά Φίλτρα")
+st.sidebar.markdown("<div class='sidebar-header'>🛠️ ΕΞΥΠΝΑ ΦΙΛΤΡΑ</div>", unsafe_allow_html=True)
 
 min_d = df['Date'].min() if not df.empty else date.today()
 max_d = df['Date'].max() if not df.empty else date.today()
-date_filter = st.sidebar.date_input("📅 Εύρος Ημερομηνιών", value=(min_d, max_d), format="DD/MM/YYYY")
+date_filter = st.sidebar.date_input("📅 Χρονικό Διάστημα", value=(min_d, max_d), format="DD/MM/YYYY")
 
-search_event = st.sidebar.text_input("🔍 Αναζήτηση Αγώνα / Ομάδας")
+search_event = st.sidebar.text_input("🔍 Λέξη-Κλειδί (Ομάδα/Αγώνας)")
 sports_list = ["Όλα"] + sorted(df['Sport'].dropna().astype(str).unique().tolist())
-selected_sport = st.sidebar.selectbox("Επιλογή Αθλήματος", sports_list)
+selected_sport = st.sidebar.selectbox("🎯 Άθλημα", sports_list)
 types_list = ["Όλοι οι Τύποι"] + sorted(df['Type'].dropna().astype(str).unique().tolist())
-selected_type = st.sidebar.selectbox("Επιλογή Τύπου Δελτίου", types_list)
+selected_type = st.sidebar.selectbox("🎫 Τύπος Συστήματος", types_list)
 
 filtered_df = df.copy()
 if len(date_filter) == 2:
@@ -399,6 +419,9 @@ if search_event: filtered_df = filtered_df[filtered_df['Event'].str.contains(sea
 if selected_sport != "Όλα": filtered_df = filtered_df[filtered_df['Sport'] == selected_sport]
 if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filtered_df['Type'] == selected_type]
 
+# ==========================================
+# MAIN APP BODY
+# ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -561,7 +584,7 @@ if st.session_state['show_new_bet_modal']:
             st.rerun()
 
 else:
-    if page == "🏠 Αρχική & Στατιστικά":
+    if page == "📊 Dashboard & Στατιστικά":
         st.header("🏠 Στατιστικά & Αναλύσεις")
         if filtered_df.empty:
             st.warning("Δεν βρέθηκαν στοιχήματα για αυτά τα φίλτρα.")
@@ -578,7 +601,7 @@ else:
 
             avg_odds = filtered_df['Odds'].mean()
             
-            # --- ΥΠΟΛΟΓΙΣΜΟΣ ΔΙΑΦΟΡΩΝ (DELTAS) ΜΕΣΗΣ ΑΠΟΔΟΣΗΣ, ΚΕΡΔΟΥΣ & ROI ---
+            # --- ΥΠΟΛΟΓΙΣΜΟΣ ΔΙΑΦΟΡΩΝ (DELTAS) ---
             profit_delta, roi_delta, win_rate_delta, odds_delta = None, None, None, None
 
             if len(filtered_df) > 1:
@@ -601,7 +624,7 @@ else:
 
             winning_bets = filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"]
             
-            # --- ΥΠΟΛΟΓΙΣΜΟΙ ΓΙΑ ΤΑ ΣΕΡΙ (Κρατάμε τα Α/Α) ---
+            # --- ΥΠΟΛΟΓΙΣΜΟΙ ΣΕΡΙ ---
             completed_bets['DateTime'] = pd.to_datetime(completed_bets['Date'].astype(str) + ' ' + completed_bets['Time'].astype(str))
             sorted_for_streaks = completed_bets.sort_values(by="DateTime")
             
@@ -756,7 +779,7 @@ else:
                 else:
                     st.info("Δεν υπάρχουν δεδομένα.")
 
-    elif page == "⏳ Εκκρεμή":
+    elif page == "⚡ Ανοιχτά Δελτία (Εκκρεμή)":
         st.header("⏳ Εκκρεμή Στοιχήματα")
         st.info("💡 Άλλαξε την 'Κατάσταση' και πάτα Αποθήκευση για να τα διευθετήσεις.")
         
@@ -790,7 +813,7 @@ else:
                 st.session_state['toast_message'] = "Τα στοιχήματα διευθετήθηκαν!"
                 st.rerun()
 
-    elif page == "📋 Ιστορικό ανά Μήνα":
+    elif page == "🗓️ Μηνιαία Αναφορά":
         st.header("📋 Ιστορικό ανά Μήνα")
         if filtered_df.empty:
             st.write("Το ιστορικό είναι άδειο για αυτές τις ημερομηνίες.")
@@ -860,7 +883,7 @@ else:
                 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-    elif page == "✏️ Επεξεργασία & Διαγραφή":
+    elif page == "⚙️ Διαχείριση Ιστορικού":
         st.header("✏️ Επεξεργασία & Διαγραφή")
         
         st.markdown("### 📝 Πλήρης Επεξεργασία (Μορφή Φόρμας)")
@@ -1013,6 +1036,7 @@ else:
                         ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
                         ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
                         
+                        # Δυναμική Κατάσταση
                         status_options = ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"]
                         s_idx = 1 if e_status == "🟡 Cash Out" else 0
                         status_sel = c8.selectbox("Κατάσταση (Συνολική)", status_options, index=s_idx, key=f"ed_status_{selected_aa}")
