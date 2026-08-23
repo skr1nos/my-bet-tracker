@@ -15,7 +15,7 @@ import difflib
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
 
-# Ρύθμιση για Ελληνικά (Fallback)
+# Ρύθμιση για Ελληνικά
 try:
     locale.setlocale(locale.LC_TIME, 'el_GR.UTF-8')
 except:
@@ -68,17 +68,6 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     padding-bottom: 8px;
 }
 
-/* Metrics / Στατιστικά Κουτάκια */
-[data-testid="stMetric"] { 
-    background-color: #16263b; 
-    border-radius: 10px; 
-    padding: 15px; 
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); 
-    border: 1px solid #1e3a5f;
-}
-[data-testid="stMetricLabel"] { color: #a8dadc !important; font-weight: 500; }
-[data-testid="stMetricValue"] { color: #ffffff !important; }
-
 /* Κρύβει το loading widget */
 [data-testid="stStatusWidget"] { display: none !important; }
 
@@ -128,17 +117,35 @@ button[kind="primary"] * {
     color: white !important;
 }
 
-/* 🔹 Δευτερεύοντα Κουμπιά (Κλείσιμο, Προβολή) */
+/* 🔹 ΜΕΤΑΤΡΟΠΗ ΤΩΝ ΔΕΥΤΕΡΕΥΟΝΤΩΝ ΚΟΥΜΠΙΩΝ ΣΕ CLICKABLE ΣΤΑΤΙΣΤΙΚΑ (CARDS) */
 button[kind="secondary"] {
     background-color: #16263b !important;
-    color: #a8dadc !important;
     border: 1px solid #1e3a5f !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
+    padding: 15px !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 90px !important;
+    text-align: left !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
     transition: all 0.2s ease !important;
 }
 button[kind="secondary"]:hover {
     border-color: #4db8ff !important;
-    color: #4db8ff !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4) !important;
+}
+button[kind="secondary"] p {
+    white-space: pre-wrap !important; /* ΕΠΙΤΡΕΠΕΙ ΤΗΝ ΑΛΛΑΓΗ ΓΡΑΜΜΗΣ */
+    font-size: 1.15rem !important;
+    color: #ffffff !important;
+    margin: 0 !important;
+    line-height: 1.5 !important;
+    text-align: left !important;
 }
 
 /* 🔹 Διαχωριστικές Γραμμές */
@@ -395,7 +402,7 @@ GREEK_COLUMNS = {
 }
 
 # ==========================================
-# 🗂️ SIDEBAR
+# 🗂️ SIDEBAR REVAMP
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 page = st.sidebar.radio(
@@ -439,7 +446,7 @@ if st.session_state['show_new_bet_modal']:
     with st.container(border=True):
         col_t, col_btn = st.columns([0.9, 0.1])
         col_t.markdown("<h3 style='color: #4db8ff; margin-bottom: 0;'>➕ Καταχώρηση Νέου Δελτίου</h3>", unsafe_allow_html=True)
-        if col_btn.button("❌", help="Κλείσιμο"):
+        if col_btn.button("❌", help="Κλείσιμο", type="primary"):
             st.session_state['show_new_bet_modal'] = False
             st.rerun()
             
@@ -461,6 +468,7 @@ if st.session_state['show_new_bet_modal']:
         legs = []
         event_str, market_str = "", ""
         auto_odds = 1.0
+        st.markdown("---")
         
         if bet_type == "Μονό":
             st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Αγώνας & Αγορά</h5>", unsafe_allow_html=True)
@@ -669,61 +677,65 @@ else:
             count_void = len(filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"])
             count_pending = len(filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"])
 
-            # --- ΕΜΦΑΝΙΣΗ ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΙ ΚΟΥΜΠΙΩΝ ---
+            # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ ---
             st.markdown("### 🏆 Στατιστικά Ταμείου")
             col_a, col_b, col_c, col_d = st.columns(4)
             
-            c_profit_delta = f"{profit_delta:.2f} €" if profit_delta is not None and not pd.isna(profit_delta) and profit_delta != 0 else None
-            c_roi_delta = f"{roi_delta:.2f} %" if roi_delta is not None and not pd.isna(roi_delta) and roi_delta != 0 else None
-            c_wr_delta = f"{win_rate_delta:.1f} %" if win_rate_delta is not None and not pd.isna(win_rate_delta) and win_rate_delta != 0 else None
-            c_odds_delta = f"{odds_delta:.2f}" if odds_delta is not None and not pd.isna(odds_delta) and odds_delta != 0 else None
+            p_delta_str = ""
+            if profit_delta is not None and not pd.isna(profit_delta) and profit_delta != 0:
+                p_delta_str = f"  ( 🟢 +{profit_delta:.2f} € )" if profit_delta > 0 else f"  ( 🔴 {profit_delta:.2f} € )"
+            if col_a.button(f"Συνολικό Κέρδος\n{total_profit:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
+                show_bets_dialog("💰 Όλα τα Διευθετημένα Δελτία", completed_bets)
 
-            col_a.metric("Συνολικό Κέρδος", f"{total_profit:.2f} €", delta=c_profit_delta)
-            col_b.metric("Yield (ROI)", f"{yield_pct:.2f} %", delta=c_roi_delta)
-            col_c.metric("Win Rate", f"{win_rate:.1f} %", delta=c_wr_delta)
+            r_delta_str = ""
+            if roi_delta is not None and not pd.isna(roi_delta) and roi_delta != 0:
+                r_delta_str = f"  ( 🟢 +{roi_delta:.2f} % )" if roi_delta > 0 else f"  ( 🔴 {roi_delta:.2f} % )"
+            if col_b.button(f"Yield (ROI)\n{yield_pct:.2f} %{r_delta_str}", key="btn_roi", use_container_width=True):
+                show_bets_dialog("📈 Όλα τα Διευθετημένα Δελτία", completed_bets)
+
+            w_delta_str = ""
+            if win_rate_delta is not None and not pd.isna(win_rate_delta) and win_rate_delta != 0:
+                w_delta_str = f"  ( 🟢 +{win_rate_delta:.1f} % )" if win_rate_delta > 0 else f"  ( 🔴 {win_rate_delta:.1f} % )"
+            if col_c.button(f"Win Rate\n{win_rate:.1f} %{w_delta_str}", key="btn_wr", use_container_width=True):
+                show_bets_dialog("🎯 Κερδισμένα & Χαμένα Δελτία", wl_bets)
             
-            col_d.metric("Σύνολο Στοιχημάτων", f"{total_bets}")
-            if col_d.button("🔍 Προβολή Όλων", use_container_width=True, key="btn_all"): 
+            if col_d.button(f"Σύνολο Στοιχημάτων\n{total_bets}", key="btn_all", use_container_width=True):
                 show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets)
 
             col_e, col_f, col_g, col_h = st.columns(4)
             
-            col_e.metric("Μέγιστο Σερί Νικών", f"{max_win_streak} 🟢")
-            if col_e.button("🔍 Προβολή Σερί", use_container_width=True, key="btn_w_streak"): 
+            if col_e.button(f"Μέγιστο Σερί Νικών\n{max_win_streak} 🟢", key="btn_w_streak", use_container_width=True): 
                 show_bets_dialog(f"🟢 Μέγιστο Σερί Νικών ({max_win_streak} δελτία)", df[df['Α/Α'].isin(win_streak_idx)])
             
-            col_f.metric("Μέγιστο Σερί Ηττών", f"{max_lose_streak} 🔴")
-            if col_f.button("🔍 Προβολή Σερί", use_container_width=True, key="btn_l_streak"): 
+            if col_f.button(f"Μέγιστο Σερί Ηττών\n{max_lose_streak} 🔴", key="btn_l_streak", use_container_width=True): 
                 show_bets_dialog(f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)", df[df['Α/Α'].isin(lose_streak_idx)])
             
-            col_g.metric("Μέση Απόδοση", f"{avg_odds:.2f}", delta=c_odds_delta, delta_color="normal")
+            o_delta_str = ""
+            if odds_delta is not None and not pd.isna(odds_delta) and odds_delta != 0:
+                o_delta_str = f"  ( 🟢 +{odds_delta:.2f} )" if odds_delta > 0 else f"  ( 🔴 {odds_delta:.2f} )"
+            if col_g.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
+                show_bets_dialog("⚖️ Όλα τα Διευθετημένα Δελτία", completed_bets)
             
-            col_h.metric("Μέγιστη Κερδισμένη Απόδοση", f"{max_win_odds:.2f}")
-            if col_h.button("🔍 Προβολή Δελτίου", use_container_width=True, key="btn_max_odds"): 
+            if col_h.button(f"Μέγιστη Απόδοση\n{max_win_odds:.2f} 🏆", key="btn_max_odds", use_container_width=True): 
                 show_bets_dialog(f"🏆 Δελτίο με Μέγιστη Κερδισμένη Απόδοση ({max_win_odds})", df[df['Α/Α'] == max_win_odds_aa])
             
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("### 📊 Ανάλυση Αποτελεσμάτων")
             c_w, c_l, c_c, c_v, c_p = st.columns(5)
             
-            c_w.metric("🟢 Κερδισμένα", f"{count_won}")
-            if c_w.button("🔍 Προβολή", use_container_width=True, key="btn_won"): 
+            if c_w.button(f"🟢 Κερδισμένα\n{count_won}", key="btn_won", use_container_width=True): 
                 show_bets_dialog("🟢 Όλα τα Κερδισμένα", filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"])
             
-            c_l.metric("🔴 Χαμένα", f"{count_lost}")
-            if c_l.button("🔍 Προβολή", use_container_width=True, key="btn_lost"): 
+            if c_l.button(f"🔴 Χαμένα\n{count_lost}", key="btn_lost", use_container_width=True): 
                 show_bets_dialog("🔴 Όλα τα Χαμένα", filtered_df[filtered_df['Status'] == "🔴 Χαμένο"])
             
-            c_c.metric("🟡 Cash Out", f"{count_cashout}")
-            if c_c.button("🔍 Προβολή", use_container_width=True, key="btn_co"): 
+            if c_c.button(f"🟡 Cash Out\n{count_cashout}", key="btn_co", use_container_width=True): 
                 show_bets_dialog("🟡 Όλα τα Cash Out", filtered_df[filtered_df['Status'] == "🟡 Cash Out"])
             
-            c_v.metric("🔵 Ακυρωμένα", f"{count_void}")
-            if c_v.button("🔍 Προβολή", use_container_width=True, key="btn_void"): 
+            if c_v.button(f"🔵 Ακυρωμένα\n{count_void}", key="btn_void", use_container_width=True): 
                 show_bets_dialog("🔵 Όλα τα Ακυρωμένα", filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"])
             
-            c_p.metric("⚪ Εκκρεμή", f"{count_pending}")
-            if c_p.button("🔍 Προβολή", use_container_width=True, key="btn_pending"): 
+            if c_p.button(f"⚪ Εκκρεμή\n{count_pending}", key="btn_pending", use_container_width=True): 
                 show_bets_dialog("⚪ Όλα τα Εκκρεμή", filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"])
 
             st.markdown("---")
@@ -846,26 +858,25 @@ else:
             
             st.markdown(f"### 📊 Στατιστικά για: {selected_month_name}")
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Συνολικό Ταμείο", f"{month_profit:.2f} €")
+            
+            if c1.button(f"Συνολικό Ταμείο\n{month_profit:.2f} €", key="btn_month_prof", use_container_width=True):
+                show_bets_dialog(f"🗓️ Όλα τα Δελτία ({selected_month_name})", month_df)
             
             if best_day is not None and worst_day is not None:
                 best_date_str = best_day['JustDate'].strftime('%d/%m')
-                c2.metric("🟢 Πιο Κερδοφόρα", f"{best_date_str} ({best_day['Profit']:.2f} €)")
-                if c2.button("🔍 Προβολή", use_container_width=True, key=f"btn_best_day"):
+                if c2.button(f"🟢 Πιο Κερδοφόρα Μέρα\n{best_date_str} ({best_day['Profit']:.2f} €)", key="btn_best_day", use_container_width=True):
                     best_df = month_df[month_df['JustDate'] == best_day['JustDate']]
                     show_bets_dialog(f"🟢 Πιο Κερδοφόρα Μέρα ({best_date_str})", best_df)
                     
                 worst_date_str = worst_day['JustDate'].strftime('%d/%m')
-                c3.metric("🔴 Χειρότερη Μέρα", f"{worst_date_str} ({worst_day['Profit']:.2f} €)")
-                if c3.button("🔍 Προβολή", use_container_width=True, key=f"btn_worst_day"):
+                if c3.button(f"🔴 Χειρότερη Μέρα\n{worst_date_str} ({worst_day['Profit']:.2f} €)", key="btn_worst_day", use_container_width=True):
                     worst_df = month_df[month_df['JustDate'] == worst_day['JustDate']]
                     show_bets_dialog(f"🔴 Χειρότερη Μέρα ({worst_date_str})", worst_df)
             else:
-                c2.metric("🟢 Πιο Κερδοφόρα", "-")
-                c3.metric("🔴 Χειρότερη Μέρα", "-")
+                c2.button("🟢 Πιο Κερδοφόρα Μέρα\n-", key="btn_best_null", use_container_width=True, disabled=True)
+                c3.button("🔴 Χειρότερη Μέρα\n-", key="btn_worst_null", use_container_width=True, disabled=True)
                 
-            c4.metric("Σύνολο Δελτίων", f"{len(month_df)}")
-            if c4.button("🔍 Προβολή Μήνα", use_container_width=True, key="btn_all_month"):
+            if c4.button(f"Σύνολο Δελτίων\n{len(month_df)}", key="btn_month_bets", use_container_width=True):
                 show_bets_dialog(f"🗓️ Όλα τα Δελτία ({selected_month_name})", month_df)
             
             st.markdown("---")
@@ -1052,7 +1063,6 @@ else:
                         ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
                         ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
                         
-                        # Δυναμική Κατάσταση
                         status_options = ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"]
                         s_idx = 1 if e_status == "🟡 Cash Out" else 0
                         status_sel = c8.selectbox("Κατάσταση (Συνολική)", status_options, index=s_idx, key=f"ed_status_{selected_aa}")
