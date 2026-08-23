@@ -11,7 +11,6 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -109,20 +108,16 @@ def get_event_suggestions(user_text, all_events, all_teams):
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
-    """ΝΕΑ ΑΠΟΛΥΤΗ ΛΟΓΙΚΗ ΑΓΟΡΑΣ: Σπάει σε νούμερα και λέξεις-κλειδιά"""
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     if norm_user in [normalize_greek(m) for m in all_markets]: return []
         
-    # Λέξεις που δείχνουν ότι τελείωσε το "Όνομα" του παίκτη/ομάδας
-    break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
+    ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
     
     def get_entity_prefix(text):
-        """Κρατάει μόνο το όνομα (μέχρι να βρει νούμερο ή break word)"""
         words = []
         for w in text.split():
-            # Αν η λέξη περιέχει ΕΣΤΩ ΚΑΙ ΕΝΑ ψηφίο (π.χ. 15+, 2.5, 1) ή είναι στοιχηματικός όρος
-            if re.search(r'\d', w) or w in break_words:
+            if re.search(r'\d', w) or w in ignore_break_words:
                 break
             words.append(w)
         return " ".join(words)
@@ -132,8 +127,6 @@ def get_market_suggestions(user_text, all_markets):
     scored_markets = []
     for m in all_markets:
         norm_m = normalize_greek(m)
-        
-        # Αν το περιέχει αυτούσιο, έχει προτεραιότητα (π.χ. Σλούκας -> Σλούκας over)
         if norm_user in norm_m:
             scored_markets.append((m, 2.0))
             continue
@@ -142,8 +135,6 @@ def get_market_suggestions(user_text, all_markets):
         
         if user_prefix and m_prefix:
             prefix_ratio = difflib.SequenceMatcher(None, user_prefix, m_prefix).ratio()
-            
-            # ΑΥΣΤΗΡΟΣ ΕΛΕΓΧΟΣ: Αν τα ονόματα των παικτών/ομάδων διαφέρουν, ΚΟΨΕ το αμέσως!
             if prefix_ratio < 0.65:
                 continue 
             
@@ -643,34 +634,71 @@ else:
             filtered_df['MonthGroup'] = pd.to_datetime(filtered_df['Date']).dt.strftime('%Y-%m')
             months = sorted(filtered_df['MonthGroup'].dropna().unique().tolist(), reverse=True)
             
-            for month in months:
-                month_df = filtered_df[filtered_df['MonthGroup'] == month].copy()
-                month_profit = month_df['Profit'].sum()
-                dt_obj = datetime.strptime(month, '%Y-%m')
-                month_name = dt_obj.strftime('%B %Y').capitalize()
+            # --- ΝΕΟ: ΕΠΙΛΟΓΗ ΜΗΝΑ ΜΕ DROPDOWN ---
+            month_options = {}
+            for m in months:
+                dt_obj = datetime.strptime(m, '%Y-%m')
+                m_name = dt_obj.strftime('%B %Y').capitalize()
+                month_options[m_name] = m
                 
-                if month_profit > 0: title_emoji = "🟢"
-                elif month_profit < 0: title_emoji = "🔴"
-                else: title_emoji = "⚪"
+            selected_month_name = st.selectbox("🗓️ Επίλεξε Μήνα προς προβολή:", list(month_options.keys()))
+            selected_month = month_options[selected_month_name]
+            
+            month_df = filtered_df[filtered_df['MonthGroup'] == selected_month].copy()
+            month_profit = month_df['Profit'].sum()
+            
+            # Στατιστικά Μήνα
+            month_df['JustDate'] = pd.to_datetime(month_df['Date']).dt.date
+            daily_profits = month_df.groupby('JustDate')['Profit'].sum().reset_index()
+            
+            best_day = daily_profits.loc[daily_profits['Profit'].idxmax()] if not daily_profits.empty else None
+            worst_day = daily_profits.loc[daily_profits['Profit'].idxmin()] if not daily_profits.empty else None
+            
+            st.markdown(f"### 📊 Στατιστικά για: {selected_month_name}")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Συνολικό Ταμείο", f"{month_profit:.2f} €")
+            
+            if best_day is not None and worst_day is not None:
+                c2.metric("🟢 Πιο Κερδοφόρα", f"{best_day['JustDate'].strftime('%d/%m')} ({best_day['Profit']:.2f} €)")
+                c3.metric("🔴 Χειρότερη Μέρα", f"{worst_day['JustDate'].strftime('%d/%m')} ({worst_day['Profit']:.2f} €)")
+            else:
+                c2.metric("🟢 Πιο Κερδοφόρα", "-")
+                c3.metric("🔴 Χειρότερη Μέρα", "-")
+                
+            c4.metric("Σύνολο Δελτίων", f"{len(month_df)}")
+            
+            st.markdown("---")
+            
+            # Χωρισμός σε Εβδομάδες (ISO Calendar)
+            month_df['Week'] = pd.to_datetime(month_df['Date']).dt.isocalendar().week
+            weeks = sorted(month_df['Week'].dropna().unique().tolist(), reverse=True)
+            
+            for w in weeks:
+                week_df = month_df[month_df['Week'] == w]
+                week_profit = week_df['Profit'].sum()
+                wp_emoji = "🟢" if week_profit > 0 else "🔴" if week_profit < 0 else "⚪"
+                
+                min_w_date = week_df['JustDate'].min().strftime('%d/%m')
+                max_w_date = week_df['JustDate'].max().strftime('%d/%m')
+                
+                st.markdown(f"#### 📅 Εβδομάδα ({min_w_date} - {max_w_date}) | Ταμείο: {wp_emoji} {week_profit:.2f} €")
+                
+                days = sorted(week_df['JustDate'].unique().tolist(), reverse=True)
+                for day in days:
+                    day_df = week_df[week_df['JustDate'] == day]
+                    day_profit = day_df['Profit'].sum()
+                    day_str = day.strftime('%d %B %Y') 
                     
-                with st.expander(f"🗓️ {month_name}  |  Ταμείο Μήνα: {title_emoji} {month_profit:.2f} €", expanded=True):
-                    month_df['JustDate'] = pd.to_datetime(month_df['Date']).dt.date
-                    days = sorted(month_df['JustDate'].unique().tolist(), reverse=True)
-                    
-                    for day in days:
-                        day_df = month_df[month_df['JustDate'] == day]
-                        day_profit = day_df['Profit'].sum()
-                        day_str = day.strftime('%d/%m/%Y')
+                    if day_profit > 0: d_emoji = "🟢"; d_prof_str = f"+{day_profit:.2f}"
+                    elif day_profit < 0: d_emoji = "🔴"; d_prof_str = f"{day_profit:.2f}"
+                    else: d_emoji = "⚪"; d_prof_str = f"{day_profit:.2f}"
                         
-                        if day_profit > 0: d_emoji = "🟢"; d_prof_str = f"+{day_profit:.2f}"
-                        elif day_profit < 0: d_emoji = "🔴"; d_prof_str = f"{day_profit:.2f}"
-                        else: d_emoji = "⚪"; d_prof_str = f"{day_profit:.2f}"
-                            
-                        st.markdown(f"#### 📅 {day_str} &nbsp;|&nbsp; Ημερήσιο Κέρδος: {d_emoji} {d_prof_str} €")
-                        
-                        display_df = day_df.drop(columns=['MonthGroup', 'Legs_Data', 'JustDate'])[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
+                    # Το expander πλέον είναι η ΜΕΡΑ!
+                    with st.expander(f"{d_emoji} {day_str}  |  Ημερήσιο Κέρδος: {d_prof_str} €", expanded=False):
+                        display_df = day_df.drop(columns=['MonthGroup', 'Legs_Data', 'JustDate', 'Week'])[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
                         st.dataframe(display_df, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
-                    st.markdown("<br>", unsafe_allow_html=True)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
 
     elif page == "✏️ Επεξεργασία & Διαγραφή":
         st.header("✏️ Επεξεργασία & Διαγραφή")
