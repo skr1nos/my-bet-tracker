@@ -22,7 +22,7 @@ try:
 except:
     pass 
 
-# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά (γιατί το Cloud καμιά φορά είναι στα Αγγλικά)
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -47,7 +47,7 @@ SPORT_ICONS = {
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
-# 🎨 PREMIUM UI CSS 
+# 🎨 PREMIUM UI CSS & FLOATING BUTTON STYLE
 # ==========================================
 custom_css = """
 <style>
@@ -72,16 +72,22 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
 /* Κρύβει το loading widget */
 [data-testid="stStatusWidget"] { display: none !important; }
 
-/* 🔹 Container Κάρτας (Επεξεργασία) */
-[data-testid="stVerticalBlockBorderWrapper"] {
-    background-color: #0f1c2e;
+/* 🔹 Container Κάρτας (Επεξεργασία & Modals) */
+[data-testid="stVerticalBlockBorderWrapper"], div[role="dialog"] {
+    background-color: #0f1c2e !important;
     border: 1px solid #1e3a5f !important;
-    border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    padding: 15px;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
 }
-[data-testid="stVerticalBlockBorderWrapper"]:hover, [data-testid="stVerticalBlockBorderWrapper"]:focus-within {
-    border: 1px solid #4db8ff !important;
+
+/* Modal Background (για να μην είναι λευκό το Pop-up) */
+[data-testid="stDialog"] > div {
+    background-color: #0b172a !important;
+    border-radius: 20px !important;
+    border: 1px solid #2a4365 !important;
+}
+[data-testid="stDialog"] header {
+    background-color: #0b172a !important;
 }
 
 /* 🔹 Inputs Form (Κουτάκια συμπλήρωσης & Dropdowns) */
@@ -114,9 +120,7 @@ button[kind="primary"]:hover {
     background: linear-gradient(90deg, #059669, #047857) !important;
     transform: translateY(-2px);
 }
-button[kind="primary"] * {
-    color: white !important;
-}
+button[kind="primary"] * { color: white !important; }
 
 /* 🔹 Δευτερεύοντα Κουμπιά / Στατιστικά (CARDS) */
 button[kind="secondary"] {
@@ -149,7 +153,40 @@ button[kind="secondary"] p {
     text-align: left !important;
 }
 
-/* 🔹 Διαχωριστικές Γραμμές */
+/* 🔹 ΕΙΔΙΚΟ STYLING ΓΙΑ ΤΟ FLOATING BUTTON (ΝΕΟ ΣΤΟΙΧΗΜΑ) 🔹 */
+.fab-wrapper {
+    position: fixed !important;
+    bottom: 40px !important;
+    right: 40px !important;
+    z-index: 999999 !important;
+    width: auto !important;
+}
+
+.fab-button {
+    background: linear-gradient(135deg, #0284c7, #10b981) !important; /* Premium Γαλάζιο-Πράσινο Gradient */
+    border-radius: 50px !important; /* Τέλειο Οβάλ */
+    padding: 16px 36px !important;
+    border: none !important;
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4), 0 4px 10px rgba(0,0,0,0.2) !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+.fab-button:hover {
+    transform: translateY(-5px) scale(1.03) !important;
+    box-shadow: 0 15px 35px rgba(16, 185, 129, 0.5), 0 6px 15px rgba(0,0,0,0.3) !important;
+    background: linear-gradient(135deg, #0369a1, #059669) !important;
+}
+.fab-button p {
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    letter-spacing: 1px !important;
+    color: white !important;
+    margin: 0 !important;
+}
+
+/* Διαχωριστικές Γραμμές */
 hr {
     border-color: #1e3a5f !important;
     margin: 1.5em 0 !important;
@@ -588,7 +625,7 @@ st.title("📈 Στοιχηματικό Dashboard")
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", key="fab_new_bet"):
     new_bet_dialog()
 
-# JAVASCRIPT GHOST HACK: Μετατρέπει το κουμπί σε Floating (Αιωρούμενο)
+# JAVASCRIPT GHOST HACK: Μετατρέπει το κουμπί σε Floating (Αιωρούμενο) προσθέτοντας τα σωστά CSS classes!
 components.html(
     """
     <script>
@@ -599,19 +636,10 @@ components.html(
         const buttons = window.parent.document.querySelectorAll('button');
         buttons.forEach(b => {
             if (b.innerText.includes('ΝΕΟ ΣΤΟΙΧΗΜΑ')) {
-                let wrapper = b.closest('div[data-testid="stButton"]');
-                if(wrapper && wrapper.style.position !== 'fixed') {
-                    wrapper.style.position = 'fixed';
-                    wrapper.style.bottom = '30px';
-                    wrapper.style.right = '30px';
-                    wrapper.style.zIndex = '99999';
-                    
-                    b.style.borderRadius = '50px';
-                    b.style.padding = '15px 30px';
-                    b.style.fontSize = '17px';
-                    b.style.fontWeight = 'bold';
-                    b.style.boxShadow = '0 10px 25px rgba(16, 185, 129, 0.5)';
-                    b.style.border = '2px solid #34d399';
+                let wrapper = b.closest('div[data-testid="stElementContainer"]');
+                if(wrapper && !wrapper.classList.contains('fab-wrapper')) {
+                    wrapper.classList.add('fab-wrapper');
+                    b.classList.add('fab-button');
                 }
             }
         });
