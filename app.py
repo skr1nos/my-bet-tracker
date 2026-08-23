@@ -39,7 +39,7 @@ SPORT_ICONS = {
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
-# 🎨 PREMIUM UI CSS
+# 🎨 PREMIUM UI CSS (ΤΕΛΟΣ ΣΤΑ ΚΟΚΚΙΝΑ ΠΛΑΙΣΙΑ)
 # ==========================================
 custom_css = """
 <style>
@@ -70,6 +70,9 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     padding: 15px;
 }
+[data-testid="stVerticalBlockBorderWrapper"]:hover, [data-testid="stVerticalBlockBorderWrapper"]:focus-within {
+    border: 1px solid #4db8ff !important; /* Γαλάζιο στο focus, ΟΧΙ κόκκινο */
+}
 
 /* 🔹 Inputs Form (Κουτάκια συμπλήρωσης & Dropdowns) */
 .stTextInput input, .stNumberInput input, 
@@ -81,8 +84,14 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     border-radius: 8px !important;
 }
 
-/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Αποθήκευση, Νέο Στοίχημα) */
-[data-testid="baseButton-primary"] {
+/* 🔵 Αλλαγή του focus ring από κόκκινο σε γαλάζιο */
+div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within {
+    border-color: #4db8ff !important;
+    box-shadow: inset 0 0 0 1px #4db8ff !important;
+}
+
+/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Αποθήκευση, Νέο Στοίχημα) - ΑΠΟΛΥΤΟ ΠΡΑΣΙΝΟ */
+button[kind="primary"] {
     background: linear-gradient(90deg, #10b981, #059669) !important;
     color: white !important;
     font-weight: 600 !important;
@@ -91,20 +100,23 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
     transition: all 0.2s ease !important;
 }
-[data-testid="baseButton-primary"]:hover {
+button[kind="primary"]:hover {
     background: linear-gradient(90deg, #059669, #047857) !important;
     transform: translateY(-2px);
 }
+button[kind="primary"] * {
+    color: white !important;
+}
 
 /* 🔹 Δευτερεύοντα Κουμπιά (Κλείσιμο, Προβολή) */
-[data-testid="baseButton-secondary"] {
+button[kind="secondary"] {
     background-color: #16263b !important;
     color: #a8dadc !important;
     border: 1px solid #1e3a5f !important;
     border-radius: 8px !important;
     transition: all 0.2s ease !important;
 }
-[data-testid="baseButton-secondary"]:hover {
+button[kind="secondary"]:hover {
     border-color: #4db8ff !important;
     color: #4db8ff !important;
 }
@@ -420,6 +432,7 @@ if st.session_state['show_new_bet_modal']:
         legs = []
         event_str, market_str = "", ""
         auto_odds = 1.0
+        st.markdown("---")
         
         if bet_type == "Μονό":
             st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Αγώνας & Αγορά</h5>", unsafe_allow_html=True)
@@ -755,7 +768,7 @@ else:
             edit_pending_df = pending_df.drop(columns=['Legs_Data'])[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
             edited_pending = st.data_editor(edit_pending_df, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
             
-            if st.button("💾 Αποθήκευση Εκκρεμών"):
+            if st.button("💾 Αποθήκευση Εκκρεμών", type="primary"):
                 for idx, row in edited_pending.iterrows():
                     aa_val = row['Α/Α']
                     real_idx = df.index[df['Α/Α'] == aa_val].tolist()[0]
@@ -1092,7 +1105,7 @@ else:
                     column_config=GREEK_COLUMNS
                 )
                 
-                if st.button("💾 Εφαρμογή Αλλαγών (Πίνακα)"):
+                if st.button("💾 Εφαρμογή Αλλαγών (Πίνακα)", type="primary"):
                     final_save_df = edited_df.copy()
                     final_save_df = final_save_df.merge(df[['Α/Α', 'Legs_Data']], on='Α/Α', how='left')
                     
