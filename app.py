@@ -192,8 +192,10 @@ def get_event_suggestions(user_text, all_events, all_teams):
     if norm_user in [normalize_greek(e) for e in all_events]: return []
         
     suggestions = []
+    delim_found = False
     for delim in [' - ', ' vs ', '-']:
         if delim in user_text:
+            delim_found = True
             parts = user_text.split(delim)
             if len(parts) == 2:
                 t1, t2 = parts[0].strip(), parts[1].strip()
@@ -273,6 +275,7 @@ def calc_overall_status(legs_list):
 # 🧾 PREMIUM DIGITAL RECEIPT (TICKET)
 # ==========================================
 def render_ticket_html(aa_val, df_source):
+    """Ενιαίο HTML string (χωρίς νέα γραμμή) για να μην σπάει ποτέ το Streamlit Markdown"""
     row = df_source[df_source['Α/Α'] == aa_val].iloc[0]
     
     status_color = "#4db8ff"
@@ -300,42 +303,25 @@ def render_ticket_html(aa_val, df_source):
     profit_str = f"+{row['Profit']:.2f} €" if row['Profit'] > 0 else f"{row['Profit']:.2f} €"
     ticket_id = f"#MB-{row['Α/Α']}{str(row['Date']).replace('-','')[2:]}"
     
-    stamp_html = f"""<div style='position:absolute; top:50px; right:10px; color:{stamp_color}; font-size:65px; font-weight:900; transform:rotate(-15deg); border:4px solid {stamp_color}; padding:5px 15px; border-radius:15px; z-index:0; pointer-events:none; letter-spacing: 2px;'>{stamp_text}</div>""" if stamp_text else ""
+    stamp_html = f"<div style='position:absolute; top:50px; right:10px; color:{stamp_color}; font-size:65px; font-weight:900; transform:rotate(-15deg); border:4px solid {stamp_color}; padding:5px 15px; border-radius:15px; z-index:0; pointer-events:none; letter-spacing: 2px;'>{stamp_text}</div>" if stamp_text else ""
     
-    html = f"""
-    <div style="background: linear-gradient(135deg, #16263b, #0f1c2e); padding: 30px; border-radius: 16px; border: 1px solid #1e3a5f; box-shadow: 0 15px 35px rgba(0,0,0,0.6); position: relative; overflow: hidden;">
-        {stamp_html}
-        <div style="text-align: center; border-bottom: 2px dashed #2a4365; padding-bottom: 15px; margin-bottom: 20px; position: relative; z-index: 1;">
-            <p style="margin: 0; color: #a8dadc; font-size: 13px; letter-spacing: 1px;">TICKET ID: {ticket_id}</p>
-            <h2 style="margin: 5px 0 0 0; color: {status_color}; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;">{row['Status']}</h2>
-            <p style="margin: 5px 0 0 0; color: #718096; font-size: 13px;">{row['Date'].strftime('%d/%m/%Y')} • {row['Time'].strftime('%H:%M')}</p>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; position: relative; z-index: 1;">
-            <div>
-                <p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">Άθλημα</p>
-                <p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Sport']}</p>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">Τύπος</p>
-                <p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Type']}</p>
-            </div>
-        </div>
-        
-        <div style="margin-bottom: 25px; position: relative; z-index: 1;">
-            <p style="margin: 0 0 15px 0; font-size: 12px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px;">Επιλογές Δελτίου</p>
-    """
+    html = f"<div style='background: linear-gradient(135deg, #16263b, #0f1c2e); padding: 30px; border-radius: 16px; border: 1px solid #1e3a5f; box-shadow: 0 15px 35px rgba(0,0,0,0.6); position: relative; overflow: hidden;'>"
+    html += stamp_html
+    html += f"<div style='text-align: center; border-bottom: 2px dashed #2a4365; padding-bottom: 15px; margin-bottom: 20px; position: relative; z-index: 1;'>"
+    html += f"<p style='margin: 0; color: #a8dadc; font-size: 13px; letter-spacing: 1px;'>TICKET ID: {ticket_id}</p>"
+    html += f"<h2 style='margin: 5px 0 0 0; color: {status_color}; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;'>{row['Status']}</h2>"
+    html += f"<p style='margin: 5px 0 0 0; color: #718096; font-size: 13px;'>{row['Date'].strftime('%d/%m/%Y')} • {row['Time'].strftime('%H:%M')}</p></div>"
+    
+    html += f"<div style='display: flex; justify-content: space-between; margin-bottom: 20px; position: relative; z-index: 1;'>"
+    html += f"<div><p style='margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;'>Αθλημα</p><p style='margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;'>{row['Sport']}</p></div>"
+    html += f"<div style='text-align: right;'><p style='margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;'>Τυπος</p><p style='margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;'>{row['Type']}</p></div></div>"
+    
+    html += f"<div style='margin-bottom: 25px; position: relative; z-index: 1;'><p style='margin: 0 0 15px 0; font-size: 12px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px;'>Επιλογες Δελτιου</p>"
     
     if row['Type'] == "Μονό":
-        html += f"""
-        <div style="background-color: rgba(6, 13, 26, 0.5); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid {status_color};">
-            <p style="margin: 0; font-weight: 600; color: #ffffff; font-size: 16px;">{row['Event']}</p>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                <span style="color: #a8dadc; font-size: 14px;">{row['Market']}</span>
-                <span style="font-weight: 700; font-size: 17px; color: #4db8ff;">{row['Odds']:.2f}</span>
-            </div>
-        </div>
-        """
+        html += f"<div style='background-color: rgba(6, 13, 26, 0.5); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid {status_color};'>"
+        html += f"<p style='margin: 0; font-weight: 600; color: #ffffff; font-size: 16px;'>{row['Event']}</p>"
+        html += f"<div style='display: flex; justify-content: space-between; align-items: center; margin-top: 10px;'><span style='color: #a8dadc; font-size: 14px;'>{row['Market']}</span><span style='font-weight: 700; font-size: 17px; color: #4db8ff;'>{row['Odds']:.2f}</span></div></div>"
     else:
         legs_str = row['Legs_Data']
         if pd.notna(legs_str) and legs_str.strip() != "":
@@ -347,56 +333,27 @@ def render_ticket_html(aa_val, df_source):
                     if "Κερδισμένο" in l_st: l_color = "#10b981"
                     elif "Χαμένο" in l_st: l_color = "#ef4444"
                     elif "Ακυρωμένο" in l_st: l_color = "#3b82f6"
-                    
                     ev_name = leg.get('event', row['Event'])
-                    html += f"""
-                    <div style="background-color: rgba(6, 13, 26, 0.5); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid {l_color};">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-weight: 600; color: #ffffff; font-size: 15px;">{ev_name}</span>
-                            <span style="font-size: 11px; font-weight: 600; color: {l_color}; padding: 3px 8px; background-color: rgba(0,0,0,0.3); border-radius: 12px;">{l_st}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                            <span style="color: #a8dadc; font-size: 14px;">{leg.get('market', '-')}</span>
-                            <span style="font-weight: 700; font-size: 16px; color: #4db8ff;">{float(leg.get('odds', 1.0)):.2f}</span>
-                        </div>
-                    </div>
-                    """
+                    html += f"<div style='background-color: rgba(6, 13, 26, 0.5); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid {l_color};'>"
+                    html += f"<div style='display: flex; justify-content: space-between; align-items: center;'><span style='font-weight: 600; color: #ffffff; font-size: 15px;'>{ev_name}</span><span style='font-size: 11px; font-weight: 600; color: {l_color}; padding: 3px 8px; background-color: rgba(0,0,0,0.3); border-radius: 12px;'>{l_st}</span></div>"
+                    html += f"<div style='display: flex; justify-content: space-between; align-items: center; margin-top: 10px;'><span style='color: #a8dadc; font-size: 14px;'>{leg.get('market', '-')}</span><span style='font-weight: 700; font-size: 16px; color: #4db8ff;'>{float(leg.get('odds', 1.0)):.2f}</span></div></div>"
             except Exception as e:
                 pass
     
-    html += f"""
-        </div>
-        <div style="border-top: 2px dashed #2a4365; padding-top: 20px; position: relative; z-index: 1;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
-                <div>
-                    <p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">Ποντάρισμα</p>
-                    <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Stake']:.2f} €</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">Συν. Απόδοση</p>
-                    <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Odds']:.2f}</p>
-                </div>
-            </div>
-            
-            <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">Συνολική Επιστροφή</p>
-                    <p style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">{total_return:.2f} €</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">Καθαρό Κέρδος</p>
-                    <p style="margin: 0; font-size: 24px; font-weight: 700; color: {status_color};">{profit_str}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    """
+    html += f"</div><div style='border-top: 2px dashed #2a4365; padding-top: 20px; position: relative; z-index: 1;'>"
+    html += f"<div style='display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;'>"
+    html += f"<div><p style='margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;'>Πονταρισμα</p><p style='margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;'>{row['Stake']:.2f} €</p></div>"
+    html += f"<div style='text-align: right;'><p style='margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;'>Συν. Αποδοση</p><p style='margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;'>{row['Odds']:.2f}</p></div></div>"
+    
+    html += f"<div style='background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;'>"
+    html += f"<div><p style='margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;'>Συνολικη Επιστροφη</p><p style='margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;'>{total_return:.2f} €</p></div>"
+    html += f"<div style='text-align: right;'><p style='margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;'>Καθαρο Κερδος</p><p style='margin: 0; font-size: 24px; font-weight: 700; color: {status_color};'>{profit_str}</p></div></div></div></div>"
+    
     st.markdown(html, unsafe_allow_html=True)
 
 @st.dialog("🧾 Απόδειξη Στοιχήματος", width="large")
 def show_ticket_modal(aa_val, df_source):
     render_ticket_html(aa_val, df_source)
-
 
 # ==========================================
 # 🔍 ΑΝΑΔΥΟΜΕΝΑ ΠΑΡΑΘΥΡΑ (MODALS) - ΠΙΝΑΚΕΣ
@@ -412,7 +369,6 @@ def show_bets_dialog(title_str, df_to_show, full_df):
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
-            # REDIRECT TO HISTORY TAB MAGIC!
             st.session_state['auto_open_ticket'] = int(sel_aa)
             st.session_state['page_sel'] = "🗓️ Μηνιαία Αναφορά"
             st.rerun()
@@ -473,7 +429,6 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
     if event.selection.rows:
         sel_idx = event.selection.rows[0]
         sel_aa = disp_df.iloc[sel_idx]['Α/Α']
-        # REDIRECT TO HISTORY TAB MAGIC!
         st.session_state['auto_open_ticket'] = int(sel_aa)
         st.session_state['page_sel'] = "🗓️ Μηνιαία Αναφορά"
         st.rerun()
@@ -736,7 +691,7 @@ GREEK_COLUMNS = {
 }
 
 # ==========================================
-# 🗂️ SIDEBAR REVAMP
+# 🗂️ SIDEBAR
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 
@@ -815,16 +770,22 @@ components.html(
             
             pDoc.body.appendChild(fab);
             
-            const scrollArea = pDoc.querySelector('.main') || pDoc.querySelector('[data-testid="stMain"]');
-            if (scrollArea) {
-                scrollArea.addEventListener('scroll', () => {
-                    if (scrollArea.scrollTop > 150) {
-                        fab.style.opacity = '1'; fab.style.pointerEvents = 'auto'; fab.style.transform = 'translateY(0) scale(1)';
+            setInterval(() => {
+                const anchor = pDoc.getElementById('bet-button-anchor');
+                if (anchor) {
+                    const rect = anchor.getBoundingClientRect();
+                    // Αν ο anchor έχει φύγει προς τα πάνω
+                    if (rect.top < -50) {
+                        fab.style.opacity = '1';
+                        fab.style.pointerEvents = 'auto';
+                        fab.style.transform = 'translateY(0) scale(1)';
                     } else {
-                        fab.style.opacity = '0'; fab.style.pointerEvents = 'none'; fab.style.transform = 'translateY(20px) scale(1)';
+                        fab.style.opacity = '0';
+                        fab.style.pointerEvents = 'none';
+                        fab.style.transform = 'translateY(20px) scale(1)';
                     }
-                });
-            }
+                }
+            }, 100);
         }
     }
     setTimeout(initFAB, 500);
@@ -1109,7 +1070,6 @@ elif page == "⚡ Ανοιχτά Δελτία (Εκκρεμή)":
 elif page == "🗓️ Μηνιαία Αναφορά":
     st.header("📋 Ιστορικό ανά Μήνα")
     
-    # ΑΝ ΕΡΧΕΤΑΙ ΑΠΟ ΑΝΑΚΑΤΕΥΘΥΝΣΗ, ΑΝΟΙΞΕ ΤΟ TICKET MODAL!
     if st.session_state.get('auto_open_ticket') is not None:
         aa = st.session_state['auto_open_ticket']
         st.session_state['auto_open_ticket'] = None
@@ -1194,7 +1154,8 @@ elif page == "🗓️ Μηνιαία Αναφορά":
                     if event.selection.rows:
                         sel_idx = event.selection.rows[0]
                         sel_aa = display_df.iloc[sel_idx]['Α/Α']
-                        show_ticket_modal(sel_aa, df)
+                        # Εδώ είμαστε ήδη στην καρτέλα, οπότε το ανοίγουμε επιτόπου
+                        show_ticket_details(sel_aa, df)
             
             st.markdown("<br>", unsafe_allow_html=True)
 
