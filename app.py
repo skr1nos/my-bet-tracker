@@ -47,10 +47,18 @@ SPORT_ICONS = {
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
-# 🎨 PREMIUM UI CSS & SMART FLOATING BUTTON
+# 🎨 PREMIUM UI CSS & NEW TYPOGRAPHY
 # ==========================================
 custom_css = """
 <style>
+/* 🔹 Εισαγωγή της γραμματοσειράς 'Poppins' */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* Εφαρμογή της γραμματοσειράς παντού */
+html, body, p, span, div, h1, h2, h3, h4, h5, h6, label, button, input, select, textarea, [class*="css"] {
+    font-family: 'Poppins', sans-serif !important;
+}
+
 /* Βασικό Background */
 .stApp { background-color: #0b172a; }
 [data-testid="stSidebar"] { background-color: #060d1a; border-right: 1px solid #1e3a5f; }
@@ -88,7 +96,7 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
 }
 [data-testid="stDialog"] header { background-color: #0b172a !important; }
 
-/* 🔹 Inputs Form */
+/* 🔹 Inputs Form (Πιο καθαρά και μοντέρνα κουτάκια) */
 .stTextInput input, .stNumberInput input, 
 [data-baseweb="select"] > div, 
 .stDateInput input, .stTimeInput input {
@@ -96,6 +104,8 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     color: #e2e8f0 !important;
     border: 1px solid #2a4365 !important;
     border-radius: 8px !important;
+    font-size: 15px !important;
+    letter-spacing: 0.3px !important;
 }
 
 div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within {
@@ -130,8 +140,8 @@ button[kind="secondary"] {
     min-height: 90px !important;
     display: flex !important;
     flex-direction: column !important;
-    align-items: center !important;  /* Κεντράρισμα Οριζόντια */
-    justify-content: center !important; /* Κεντράρισμα Κάθετα */
+    align-items: center !important;  
+    justify-content: center !important; 
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
     transition: all 0.2s ease !important;
 }
@@ -146,7 +156,7 @@ button[kind="secondary"] p {
     color: #ffffff !important;
     margin: 0 !important;
     line-height: 1.5 !important;
-    text-align: center !important;  /* Κεντράρισμα κειμένου */
+    text-align: center !important;  
     width: 100% !important;
 }
 
@@ -179,13 +189,13 @@ button[kind="secondary"] p {
 
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
 
-/* 🔹 ΜΕΝΟΥ ΠΛΟΗΓΗΣΗΣ (RADIO BUTTONS) - ΠΕΡΙΣΣΟΤΕΡΟΣ ΧΩΡΟΣ */
+/* 🔹 ΜΕΝΟΥ ΠΛΟΗΓΗΣΗΣ (RADIO BUTTONS) */
 div[role="radiogroup"] > label {
     background-color: #16263b !important;
-    padding: 12px 15px !important; /* Περισσότερο εσωτερικό κενό (ανάσα) */
+    padding: 12px 15px !important; 
     border-radius: 8px !important;
     border: 1px solid #1e3a5f !important;
-    margin-bottom: 12px !important; /* Περισσότερο εξωτερικό κενό ανάμεσα στα κουμπιά */
+    margin-bottom: 12px !important; 
     cursor: pointer;
 }
 </style>
@@ -648,12 +658,12 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 # ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
-# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ (ΜΕ ANCHOR ΓΙΑ ΝΑ ΞΕΡΕΙ ΠΟΤΕ ΝΑ ΑΙΩΡΕΙΤΑΙ) ---
+# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ ---
 st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_allow_html=True)
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# JAVASCRIPT: Intersection Observer (Αφαίρεση Shortcut)
+# JAVASCRIPT: Αμιγώς για το Floating Button
 components.html(
     """
     <script>
@@ -998,17 +1008,17 @@ elif page == "🗓️ Μηνιαία Αναφορά":
         
         if best_day is not None and worst_day is not None:
             best_date_str = best_day['JustDate'].strftime('%d/%m')
-            if c2.button(f"🟢 Πιο Κερδοφόρα Μέρα\n{best_date_str} ({best_day['Profit']:.2f} €)", key="btn_best_day", use_container_width=True):
+            if c2.button(f"🟢 Πιο Κερδοφόρα Μέρα\n{best_date_str}\n({best_day['Profit']:.2f} €)", key="btn_best_day", use_container_width=True):
                 best_df = month_df[month_df['JustDate'] == best_day['JustDate']]
                 show_bets_dialog(f"🟢 Πιο Κερδοφόρα Μέρα ({best_date_str})", best_df)
                 
             worst_date_str = worst_day['JustDate'].strftime('%d/%m')
-            if c3.button(f"🔴 Χειρότερη Μέρα\n{worst_date_str} ({worst_day['Profit']:.2f} €)", key="btn_worst_day", use_container_width=True):
+            if c3.button(f"🔴 Χειρότερη Μέρα\n{worst_date_str}\n({worst_day['Profit']:.2f} €)", key="btn_worst_day", use_container_width=True):
                 worst_df = month_df[month_df['JustDate'] == worst_day['JustDate']]
                 show_bets_dialog(f"🔴 Χειρότερη Μέρα ({worst_date_str})", worst_df)
         else:
-            c2.button("🟢 Πιο Κερδοφόρα Μέρα\n-", key="btn_best_null", use_container_width=True, disabled=True)
-            c3.button("🔴 Χειρότερη Μέρα\n-", key="btn_worst_null", use_container_width=True, disabled=True)
+            c2.button("🟢 Πιο Κερδοφόρα Μέρα\n-\n(-)", key="btn_best_null", use_container_width=True, disabled=True)
+            c3.button("🔴 Χειρότερη Μέρα\n-\n(-)", key="btn_worst_null", use_container_width=True, disabled=True)
             
         if c4.button(f"Σύνολο Δελτίων\n{len(month_df)}", key="btn_month_bets", use_container_width=True):
             show_bets_dialog(f"🗓️ Όλα τα Δελτία ({selected_month_name})", month_df)
