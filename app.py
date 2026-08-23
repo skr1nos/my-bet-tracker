@@ -11,8 +11,6 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-
-# Η ΠΟΛΥΤΙΜΗ ΕΝΤΟΛΗ ΠΟΥ ΕΛΕΙΠΕ:
 import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
@@ -55,8 +53,7 @@ custom_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-/* Εφαρμογή γραμματοσειράς ΜΟΝΟ σε κείμενα (εξαιρούμε τα εικονίδια της πλατφόρμας) */
-h1, h2, h3, h4, h5, h6, p, label, .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input, button p {
+html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p, span, div {
     font-family: 'Poppins', sans-serif !important;
 }
 
@@ -73,7 +70,6 @@ h1, h2, h3, h4, h5, h6, p, label, .stTextInput input, .stNumberInput input, .stD
     margin-bottom: 10px;
     border-bottom: 1px solid #1e3a5f;
     padding-bottom: 8px;
-    font-family: 'Poppins', sans-serif;
 }
 
 [data-testid="stStatusWidget"] { display: none !important; }
@@ -92,7 +88,6 @@ h1, h2, h3, h4, h5, h6, p, label, .stTextInput input, .stNumberInput input, .stD
 }
 [data-testid="stDialog"] header { background-color: #0b172a !important; }
 
-/* 🔹 Inputs Form */
 .stTextInput input, .stNumberInput input, 
 [data-baseweb="select"] > div, 
 .stDateInput input, .stTimeInput input {
@@ -109,7 +104,6 @@ div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within 
     box-shadow: inset 0 0 0 1px #4db8ff !important;
 }
 
-/* 🔹 Κεντρικό Κουμπί Πρωτεύον */
 button[kind="primary"] {
     background: linear-gradient(90deg, #10b981, #059669) !important;
     color: white !important;
@@ -125,7 +119,6 @@ button[kind="primary"]:hover {
 }
 button[kind="primary"] * { color: white !important; }
 
-/* 🔹 Δευτερεύοντα Κουμπιά / Στατιστικά (BASE) */
 button[kind="secondary"] {
     background-color: #16263b !important;
     border: 1px solid #1e3a5f !important;
@@ -142,66 +135,29 @@ button[kind="secondary"] {
     transition: all 0.2s ease !important;
 }
 button[kind="secondary"]:hover {
+    border-color: #4db8ff !important;
     transform: translateY(-3px) !important;
     box-shadow: 0 6px 12px rgba(0,0,0,0.4) !important;
 }
 button[kind="secondary"] p {
     white-space: pre-wrap !important;
     font-size: 1.15rem !important;
-    color: #e2e8f0 !important;
+    color: #ffffff !important;
     margin: 0 !important;
     line-height: 1.5 !important;
     text-align: center !important;  
     width: 100% !important;
 }
 
-/* 🎨 DYNAMIC COLORS ΓΙΑ ΤΑ ΣΤΑΤΙΣΤΙΚΑ (MAGIC TRICK) */
-div[data-testid="stElementContainer"]:has(.marker-positive),
-div[data-testid="stElementContainer"]:has(.marker-negative),
-div[data-testid="stElementContainer"]:has(.marker-neutral),
-div[data-testid="stElementContainer"]:has(.marker-warning),
-div[data-testid="stElementContainer"]:has(.marker-info) {
-    margin: 0 !important; height: 0 !important; display: none !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #10b981 !important;
-    background-color: rgba(16, 185, 129, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button p {
-    color: #10b981 !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #ef4444 !important;
-    background-color: rgba(239, 68, 68, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button p {
-    color: #ef4444 !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #f59e0b !important;
-    background-color: rgba(245, 158, 11, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button p {
-    color: #f59e0b !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #3b82f6 !important;
-    background-color: rgba(59, 130, 246, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button p {
-    color: #3b82f6 !important; font-weight: 600 !important;
-}
-
-/* Διαχωριστικές Γραμμές */
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
 
-/* Ράδιο Μπάτον */
 div[role="radiogroup"] > label {
-    background-color: #16263b !important; padding: 12px 15px !important; border-radius: 8px !important; border: 1px solid #1e3a5f !important; margin-bottom: 12px !important; cursor: pointer;
+    background-color: #16263b !important;
+    padding: 12px 15px !important; 
+    border-radius: 8px !important;
+    border: 1px solid #1e3a5f !important;
+    margin-bottom: 12px !important; 
+    cursor: pointer;
 }
 </style>
 """
@@ -287,12 +243,9 @@ def get_market_suggestions(user_text, all_markets):
             continue
             
         m_prefix = get_entity_prefix(norm_m)
-        
         if user_prefix and m_prefix:
             prefix_ratio = difflib.SequenceMatcher(None, user_prefix, m_prefix).ratio()
-            if prefix_ratio < 0.65:
-                continue 
-            
+            if prefix_ratio < 0.65: continue 
             overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
             scored_markets.append((m, overall_ratio + prefix_ratio))
         else:
@@ -320,8 +273,9 @@ def calc_overall_status(legs_list):
     elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
     else: return "🔵 Ακυρωμένο"
 
+
 # ==========================================
-# 🔍 ΣΥΝΑΡΤΗΣΗ ΕΜΦΑΝΙΣΗΣ ΑΠΟΔΕΙΞΗΣ (INLINE & MODAL)
+# 🔍 ΣΥΝΑΡΤΗΣΗ ΕΜΦΑΝΙΣΗΣ ΑΠΟΔΕΙΞΗΣ (INLINE)
 # ==========================================
 def render_ticket_html(aa_val, df_source):
     row = df_source[df_source['Α/Α'] == aa_val].iloc[0]
@@ -442,7 +396,10 @@ def render_ticket_html(aa_val, df_source):
         </div>
     </div>
     """
-    st.markdown(html, unsafe_allow_html=True)
+    
+    # Το κόλπο για να μην κρασάρει το Markdown parser του Streamlit 
+    html_clean = html.replace('\n', '')
+    st.markdown(html_clean, unsafe_allow_html=True)
 
 @st.dialog("🧾 Απόδειξη Στοιχήματος", width="large")
 def show_ticket_modal(aa_val, df_source):
@@ -462,7 +419,6 @@ def show_bets_dialog(title_str, df_to_show, full_df):
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
-            # REDIRECT TO HISTORY TAB MAGIC!
             st.session_state['auto_open_ticket'] = int(sel_aa)
             st.session_state['page_sel'] = "🗓️ Μηνιαία Αναφορά"
             st.rerun()
