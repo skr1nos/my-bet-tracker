@@ -86,9 +86,7 @@ h1, h2, h3, p, label, .stMarkdown { color: #e2e8f0 !important; }
     border-radius: 20px !important;
     border: 1px solid #2a4365 !important;
 }
-[data-testid="stDialog"] header {
-    background-color: #0b172a !important;
-}
+[data-testid="stDialog"] header { background-color: #0b172a !important; }
 
 /* 🔹 Inputs Form (Κουτάκια συμπλήρωσης & Dropdowns) */
 .stTextInput input, .stNumberInput input, 
@@ -158,7 +156,7 @@ button[kind="secondary"] p {
     position: fixed !important;
     bottom: 30px !important;
     right: 30px !important;
-    z-index: 90 !important; /* Πίσω από το sidebar αν ανοίξει */
+    z-index: 90 !important; 
     width: auto !important;
     animation: pop-in 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards !important;
 }
@@ -170,7 +168,7 @@ button[kind="secondary"] p {
 
 .fab-wrapper button {
     width: auto !important;
-    border-radius: 50px !important; /* Στρογγυλεμένο Pill */
+    border-radius: 50px !important; 
     padding: 15px 30px !important;
     background: linear-gradient(135deg, #0284c7, #10b981) !important;
     box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4), 0 4px 10px rgba(0,0,0,0.2) !important;
@@ -180,10 +178,8 @@ button[kind="secondary"] p {
     box-shadow: 0 15px 35px rgba(16, 185, 129, 0.5), 0 6px 15px rgba(0,0,0,0.3) !important;
 }
 
-/* Διαχωριστικές Γραμμές */
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
 
-/* Ράδιο Μπάτον */
 div[role="radiogroup"] label {
     background-color: #16263b;
     padding: 5px 15px;
@@ -311,7 +307,7 @@ def calc_overall_status(legs_list):
 # ==========================================
 # 🔍 ΑΝΑΔΥΟΜΕΝΑ ΠΑΡΑΘΥΡΑ (MODALS) 
 # ==========================================
-@st.dialog("📊 Προβολή Δελτίων", width="large")
+@st.dialog("📊 Λεπτομέρειες", width="large")
 def show_bets_dialog(title_str, df_to_show):
     st.markdown(f"<h3 style='color: #4db8ff;'>{title_str}</h3>", unsafe_allow_html=True)
     if not df_to_show.empty:
@@ -319,6 +315,46 @@ def show_bets_dialog(title_str, df_to_show):
         st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
     else:
         st.info("Δεν βρέθηκαν δελτία.")
+
+@st.dialog("📈 Ανάλυση Εξέλιξης", width="large")
+def show_progression_dialog(metric_type, prog_dataframe):
+    if prog_dataframe.empty:
+        st.info("Δεν υπάρχουν δεδομένα.")
+        return
+        
+    if metric_type == "profit":
+        st.markdown("<h3 style='color: #4db8ff;'>💰 Εξέλιξη Συνολικού Ταμείου</h3>", unsafe_allow_html=True)
+        disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Stake', 'Odds', 'Profit', 'Cumulative_Profit']].copy()
+        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Stake': 'Ποντάρισμα', 'Odds': 'Απόδοση', 'Profit': 'Κέρδος/Ζημιά', 'Cumulative_Profit': 'Τρέχον Ταμείο'}, inplace=True)
+        cfg = {
+            "Τρέχον Ταμείο": st.column_config.NumberColumn("Τρέχον Ταμείο (€)", format="%.2f €"),
+            "Κέρδος/Ζημιά": st.column_config.NumberColumn("Κέρδος/Ζημιά", format="%.2f €"),
+            "Ποντάρισμα": st.column_config.NumberColumn("Ποντάρισμα", format="%.2f €"),
+            "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
+        }
+        
+    elif metric_type == "roi":
+        st.markdown("<h3 style='color: #4db8ff;'>📉 Εξέλιξη Yield (ROI)</h3>", unsafe_allow_html=True)
+        disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Stake', 'Profit', 'Cumulative_ROI']].copy()
+        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Stake': 'Ποντάρισμα', 'Profit': 'Κέρδος/Ζημιά', 'Cumulative_ROI': 'Τρέχον ROI'}, inplace=True)
+        cfg = {
+            "Τρέχον ROI": st.column_config.NumberColumn("Τρέχον ROI (%)", format="%.2f %%"),
+            "Κέρδος/Ζημιά": st.column_config.NumberColumn("Κέρδος/Ζημιά", format="%.2f €"),
+            "Ποντάρισμα": st.column_config.NumberColumn("Ποντάρισμα", format="%.2f €"),
+            "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
+        }
+        
+    elif metric_type == "wr":
+        st.markdown("<h3 style='color: #4db8ff;'>🎯 Εξέλιξη Win Rate</h3>", unsafe_allow_html=True)
+        disp_df = prog_dataframe[prog_dataframe['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])].copy()
+        disp_df = disp_df[['Α/Α', 'Date', 'Event', 'Status', 'Cumulative_WR']]
+        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Status': 'Κατάσταση', 'Cumulative_WR': 'Τρέχον Win Rate'}, inplace=True)
+        cfg = {
+            "Τρέχον Win Rate": st.column_config.NumberColumn("Τρέχον Win Rate (%)", format="%.1f %%"),
+            "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
+        }
+        
+    st.dataframe(disp_df, use_container_width=True, hide_index=True, column_config=cfg)
 
 @st.dialog("➕ Καταχώρηση Νέου Δελτίου", width="large")
 def new_bet_dialog():
@@ -578,7 +614,7 @@ GREEK_COLUMNS = {
 }
 
 # ==========================================
-# 🗂️ SIDEBAR REVAMP
+# 🗂️ SIDEBAR REVAMP & KEYBOARD SHORTCUT
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 page = st.sidebar.radio(
@@ -588,7 +624,6 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.markdown("<div class='sidebar-header'>🛠️ ΕΞΥΠΝΑ ΦΙΛΤΡΑ</div>", unsafe_allow_html=True)
-
 min_d = df['Date'].min() if not df.empty else date.today()
 max_d = df['Date'].max() if not df.empty else date.today()
 date_filter = st.sidebar.date_input("📅 Χρονικό Διάστημα", value=(min_d, max_d), format="DD/MM/YYYY")
@@ -598,6 +633,9 @@ sports_list = ["Όλα"] + sorted(df['Sport'].dropna().astype(str).unique().toli
 selected_sport = st.sidebar.selectbox("🎯 Άθλημα", sports_list)
 types_list = ["Όλοι οι Τύποι"] + sorted(df['Type'].dropna().astype(str).unique().tolist())
 selected_type = st.sidebar.selectbox("🎫 Τύπος Συστήματος", types_list)
+
+st.sidebar.markdown("<div class='sidebar-header'>⌨️ ΣΥΝΤΟΜΕΥΣΗ ΠΛΗΚΤΡΟΛΟΓΙΟΥ</div>", unsafe_allow_html=True)
+shortcut_key = st.sidebar.text_input("Πλήκτρο για Νέο Στοίχημα:", value="+", max_chars=1)
 
 filtered_df = df.copy()
 if len(date_filter) == 2:
@@ -618,50 +656,73 @@ st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_al
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# JAVASCRIPT: Έξυπνος Μηχανισμός Intersection Observer
+# JAVASCRIPT: Intersection Observer + ΚΑΙ Keyboard Shortcut Listener
 components.html(
-    """
+    f"""
     <script>
     const targetNode = window.parent.document.body;
     let observer = null;
     let isObserving = false;
 
-    const setupObserver = function() {
+    // Λειτουργία Floating Button
+    const setupObserver = function() {{
         const anchor = window.parent.document.getElementById('bet-button-anchor');
         const buttons = window.parent.document.querySelectorAll('button');
         let targetBtn = null;
         
-        buttons.forEach(b => {
-            if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {
+        buttons.forEach(b => {{
+            if (b.innerText.trim() === '➕ ΝΕΟ ΣΤΟΙΧΗΜΑ') {{
                 targetBtn = b.closest('div[data-testid="stElementContainer"]');
-            }
-        });
+            }}
+        }});
 
-        if (anchor && targetBtn) {
-            if (!isObserving || !window.parent.document.contains(anchor)) {
+        if (anchor && targetBtn) {{
+            if (!isObserving || !window.parent.document.contains(anchor)) {{
                 if(observer) observer.disconnect();
-                
-                observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
+                observer = new IntersectionObserver((entries) => {{
+                    entries.forEach(entry => {{
+                        if (entry.isIntersecting) {{
                             targetBtn.classList.remove('fab-wrapper');
-                        } else {
+                        }} else {{
                             targetBtn.classList.add('fab-wrapper');
-                        }
-                    });
-                }, { threshold: 0 });
-                
+                        }}
+                    }});
+                }}, {{ threshold: 0 }});
                 observer.observe(anchor);
                 isObserving = true;
-            }
-        } else {
+            }}
+        }} else {{
             isObserving = false;
-        }
-    };
+        }}
+    }};
 
-    const domObserver = new MutationObserver(() => { setupObserver(); });
-    domObserver.observe(targetNode, { childList: true, subtree: true });
-    setupObserver(); // First run
+    const domObserver = new MutationObserver(() => {{ setupObserver(); }});
+    domObserver.observe(targetNode, {{ childList: true, subtree: true }});
+    setupObserver(); 
+
+    // Λειτουργία Custom Keyboard Shortcut
+    const doc = window.parent.document;
+    doc.setAttribute('data-bet-shortcut', '{shortcut_key}'.toLowerCase());
+
+    if (!doc.window_bet_shortcut_added) {{
+        doc.addEventListener('keydown', function(e) {{
+            // Αγνοούμε αν ο χρήστης γράφει κάπου
+            const activeTag = doc.activeElement ? doc.activeElement.tagName.toLowerCase() : '';
+            if (activeTag === 'input' || activeTag === 'textarea') return;
+            
+            const currentShortcut = doc.getAttribute('data-bet-shortcut');
+            if (currentShortcut && e.key.toLowerCase() === currentShortcut) {{
+                const buttons = doc.querySelectorAll('button');
+                buttons.forEach(b => {{
+                    if (b.innerText.includes('ΝΕΟ ΣΤΟΙΧΗΜΑ')) {{
+                        b.click();
+                        e.preventDefault(); 
+                    }}
+                }});
+            }}
+        }});
+        doc.window_bet_shortcut_added = true;
+    }}
     </script>
     """,
     height=0
@@ -707,16 +768,46 @@ if page == "📊 Dashboard & Στατιστικά":
 
         winning_bets = filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"]
         
+        # --- ΥΠΟΛΟΓΙΣΜΟΣ ΕΞΕΛΙΞΗΣ (PROGRESSION DATA) ---
         completed_bets['DateTime'] = pd.to_datetime(completed_bets['Date'].astype(str) + ' ' + completed_bets['Time'].astype(str))
-        sorted_for_streaks = completed_bets.sort_values(by="DateTime")
+        prog_df = completed_bets.sort_values(by="DateTime")
+        
+        cum_profit = []
+        cum_stake = []
+        cum_roi = []
+        cum_wr = []
+        
+        current_p = 0.0
+        current_s = 0.0
+        current_wl_count = 0
+        current_wins = 0
         
         max_win_streak, max_lose_streak = 0, 0
         current_w, current_l = 0, 0
         win_streak_idx, lose_streak_idx = [], []
         curr_w_idx, curr_l_idx = [], []
         
-        for idx, row in sorted_for_streaks.iterrows():
+        for idx, row in prog_df.iterrows():
+            # Για την Εξέλιξη Ταμείου / ROI
+            current_p += row['Profit']
+            if row['Status'] != "🔵 Ακυρωμένο": # Τα void δεν μετράνε στο stake συνήθως, ή μετράνε με 0
+                current_s += row['Stake']
+            
             status = row['Status']
+            if status in ["🟢 Κερδισμένο", "🔴 Χαμένο"]:
+                current_wl_count += 1
+                if status == "🟢 Κερδισμένο":
+                    current_wins += 1
+            
+            c_roi = (current_p / current_s * 100) if current_s > 0 else 0.0
+            c_wr = (current_wins / current_wl_count * 100) if current_wl_count > 0 else 0.0
+            
+            cum_profit.append(current_p)
+            cum_stake.append(current_s)
+            cum_roi.append(c_roi)
+            cum_wr.append(c_wr)
+
+            # Για τα Σερί
             if status == "🟢 Κερδισμένο":
                 current_w += 1
                 curr_w_idx.append(row['Α/Α'])
@@ -737,6 +828,12 @@ if page == "📊 Dashboard & Στατιστικά":
                 current_w = 0; curr_w_idx = []
                 current_l = 0; curr_l_idx = []
 
+        prog_df['Cumulative_Profit'] = cum_profit
+        prog_df['Cumulative_Stake'] = cum_stake
+        prog_df['Cumulative_ROI'] = cum_roi
+        prog_df['Cumulative_WR'] = cum_wr
+        prog_df = prog_df.sort_values(by="DateTime", ascending=False) # Για να βλέπεις τα πιο πρόσφατα πάνω πάνω
+
         max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
         max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
 
@@ -754,19 +851,19 @@ if page == "📊 Dashboard & Στατιστικά":
         if profit_delta is not None and not pd.isna(profit_delta) and profit_delta != 0:
             p_delta_str = f"  ( 🟢 +{profit_delta:.2f} € )" if profit_delta > 0 else f"  ( 🔴 {profit_delta:.2f} € )"
         if col_a.button(f"Συνολικό Κέρδος\n{total_profit:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
-            show_bets_dialog("💰 Όλα τα Διευθετημένα Δελτία", completed_bets)
+            show_progression_dialog("profit", prog_df)
 
         r_delta_str = ""
         if roi_delta is not None and not pd.isna(roi_delta) and roi_delta != 0:
             r_delta_str = f"  ( 🟢 +{roi_delta:.2f} % )" if roi_delta > 0 else f"  ( 🔴 {roi_delta:.2f} % )"
         if col_b.button(f"Yield (ROI)\n{yield_pct:.2f} %{r_delta_str}", key="btn_roi", use_container_width=True):
-            show_bets_dialog("📈 Όλα τα Διευθετημένα Δελτία", completed_bets)
+            show_progression_dialog("roi", prog_df)
 
         w_delta_str = ""
         if win_rate_delta is not None and not pd.isna(win_rate_delta) and win_rate_delta != 0:
             w_delta_str = f"  ( 🟢 +{win_rate_delta:.1f} % )" if win_rate_delta > 0 else f"  ( 🔴 {win_rate_delta:.1f} % )"
         if col_c.button(f"Win Rate\n{win_rate:.1f} %{w_delta_str}", key="btn_wr", use_container_width=True):
-            show_bets_dialog("🎯 Κερδισμένα & Χαμένα Δελτία", wl_bets)
+            show_progression_dialog("wr", prog_df)
         
         if col_d.button(f"Σύνολο Στοιχημάτων\n{total_bets}", key="btn_all", use_container_width=True):
             show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets)
@@ -813,30 +910,29 @@ if page == "📊 Dashboard & Στατιστικά":
         with col_chart1:
             st.markdown("### 📉 Εξέλιξη Κέρδους")
             if not completed_bets.empty:
-                df_line = sorted_for_streaks.copy()
-                df_line['Bankroll'] = df_line['Profit'].cumsum()
+                df_line = prog_df.sort_values(by="DateTime").copy() # Χρησιμοποιούμε το προ-υπολογισμένο
                 df_line['Ημ/νια'] = pd.to_datetime(df_line['Date']).dt.strftime('%d/%m/%Y')
                 df_line['Bet_Count'] = range(1, len(df_line) + 1)
                 
-                zero_point = pd.DataFrame([{'Bet_Count': 0, 'Bankroll': 0.0, 'Ημ/νια': '-', 'Event': 'Αρχικό Κεφάλαιο (Μηδέν)', 'Profit': 0.0}])
+                zero_point = pd.DataFrame([{'Bet_Count': 0, 'Cumulative_Profit': 0.0, 'Ημ/νια': '-', 'Event': 'Αρχικό Κεφάλαιο (Μηδέν)', 'Profit': 0.0}])
                 df_line = pd.concat([zero_point, df_line], ignore_index=True)
                 
                 base = alt.Chart(df_line).encode(
                     x=alt.X('Bet_Count:Q', axis=alt.Axis(labels=False, title=None, ticks=False, grid=False)),
-                    y=alt.Y('Bankroll:Q', title="Ταμείο (€)", axis=alt.Axis(gridColor="#1f2937"))
+                    y=alt.Y('Cumulative_Profit:Q', title="Ταμείο (€)", axis=alt.Axis(gridColor="#1f2937"))
                 )
                 
                 line = base.mark_trail(interpolate='monotone').encode(
-                    color=alt.condition(alt.datum.Bankroll >= 0, alt.value('#4ade80'), alt.value('#ff4b4b')),
+                    color=alt.condition(alt.datum.Cumulative_Profit >= 0, alt.value('#4ade80'), alt.value('#ff4b4b')),
                     size=alt.value(3)
                 )
                 
                 points = base.mark_circle(size=60).encode(
-                    color=alt.condition(alt.datum.Bankroll >= 0, alt.value('#4ade80'), alt.value('#ff4b4b'))
+                    color=alt.condition(alt.datum.Cumulative_Profit >= 0, alt.value('#4ade80'), alt.value('#ff4b4b'))
                 )
                 
                 hover_points = base.mark_circle(size=500, color="transparent").encode(
-                    tooltip=[alt.Tooltip('Ημ/νια:N', title='Ημερομηνία'), alt.Tooltip('Bankroll:Q', title='Κέρδος (€)', format='.2f')]
+                    tooltip=[alt.Tooltip('Ημ/νια:N', title='Ημερομηνία'), alt.Tooltip('Cumulative_Profit:Q', title='Κέρδος (€)', format='.2f')]
                 )
                 
                 chart = (line + points + hover_points).properties(height=350)
