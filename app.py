@@ -247,16 +247,19 @@ def get_event_suggestions(user_text, all_events, all_teams):
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
+    """ΝΕΑ ΑΠΟΛΥΤΗ ΛΟΓΙΚΗ ΑΓΟΡΑΣ: Σπάει σε νούμερα και λέξεις-κλειδιά"""
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
     if norm_user in [normalize_greek(m) for m in all_markets]: return []
         
-    ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
+    # Λέξεις που δείχνουν ότι τελείωσε το "Όνομα" του παίκτη/ομάδας
+    break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
     
     def get_entity_prefix(text):
         words = []
         for w in text.split():
-            if re.search(r'\d', w) or w in ignore_break_words:
+            # Αν η λέξη περιέχει ΕΣΤΩ ΚΑΙ ΕΝΑ ψηφίο (π.χ. 15+, 2.5, 1) ή είναι στοιχηματικός όρος
+            if re.search(r'\d', w) or w in break_words:
                 break
             words.append(w)
         return " ".join(words)
@@ -636,6 +639,7 @@ selected_type = st.sidebar.selectbox("🎫 Τύπος Συστήματος", typ
 
 st.sidebar.markdown("<div class='sidebar-header'>⌨️ ΣΥΝΤΟΜΕΥΣΗ ΠΛΗΚΤΡΟΛΟΓΙΟΥ</div>", unsafe_allow_html=True)
 shortcut_key = st.sidebar.text_input("Πλήκτρο για Νέο Στοίχημα:", value="+", max_chars=1)
+st.sidebar.info("💡 Κάνε κλικ στο κενό φόντο και πάτα το σύμβολο για γρήγορη καταχώρηση!")
 
 filtered_df = df.copy()
 if len(date_filter) == 2:
@@ -651,23 +655,22 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 # ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
-# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ (ΜΕ ANCHOR ΓΙΑ ΝΑ ΞΕΡΕΙ ΠΟΤΕ ΝΑ ΑΙΩΡΕΙΤΑΙ) ---
+# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ ---
 st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_allow_html=True)
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# JAVASCRIPT: Intersection Observer + ΚΑΙ Keyboard Shortcut Listener
+# 🧠 JAVASCRIPT GHOST HACK: ΑΙΩΡΗΣΗ & SHORTCUT MAZI!
 components.html(
     f"""
     <script>
-    const targetNode = window.parent.document.body;
-    let observer = null;
-    let isObserving = false;
+    const parentWin = window.parent;
+    const parentDoc = parentWin.document;
 
-    // Λειτουργία Floating Button
+    // 1. Floating Button Observer
     const setupObserver = function() {{
-        const anchor = window.parent.document.getElementById('bet-button-anchor');
-        const buttons = window.parent.document.querySelectorAll('button');
+        const anchor = parentDoc.getElementById('bet-button-anchor');
+        const buttons = parentDoc.querySelectorAll('button');
         let targetBtn = null;
         
         buttons.forEach(b => {{
@@ -677,9 +680,9 @@ components.html(
         }});
 
         if (anchor && targetBtn) {{
-            if (!isObserving || !window.parent.document.contains(anchor)) {{
-                if(observer) observer.disconnect();
-                observer = new IntersectionObserver((entries) => {{
+            if (!parentWin.isObserving || !parentDoc.contains(anchor)) {{
+                if(parentWin.observer) parentWin.observer.disconnect();
+                parentWin.observer = new IntersectionObserver((entries) => {{
                     entries.forEach(entry => {{
                         if (entry.isIntersecting) {{
                             targetBtn.classList.remove('fab-wrapper');
@@ -688,40 +691,52 @@ components.html(
                         }}
                     }});
                 }}, {{ threshold: 0 }});
-                observer.observe(anchor);
-                isObserving = true;
+                parentWin.observer.observe(anchor);
+                parentWin.isObserving = true;
             }}
         }} else {{
-            isObserving = false;
+            parentWin.isObserving = false;
         }}
     }};
 
     const domObserver = new MutationObserver(() => {{ setupObserver(); }});
-    domObserver.observe(targetNode, {{ childList: true, subtree: true }});
+    domObserver.observe(parentDoc.body, {{ childList: true, subtree: true }});
     setupObserver(); 
 
-    // Λειτουργία Custom Keyboard Shortcut
-    const doc = window.parent.document;
-    doc.setAttribute('data-bet-shortcut', '{shortcut_key}'.toLowerCase());
+    // 2. Keyboard Shortcut Listener (ΝΕΑ NATIVE ΕΚΔΟΣΗ)
+    parentDoc.setAttribute('data-bet-shortcut', '{shortcut_key}'.trim().toLowerCase());
 
-    if (!doc.window_bet_shortcut_added) {{
-        doc.addEventListener('keydown', function(e) {{
-            // Αγνοούμε αν ο χρήστης γράφει κάπου
-            const activeTag = doc.activeElement ? doc.activeElement.tagName.toLowerCase() : '';
+    if (!parentWin.shortcut_listener_active) {{
+        parentWin.addEventListener('keyup', function(e) {{
+            const activeElem = parentDoc.activeElement;
+            const activeTag = activeElem ? activeElem.tagName.toLowerCase() : '';
+            
+            // Αγνοούμε αν ο χρήστης γράφει κάπου (πρέπει να κάνει κλικ έξω πρώτα)
             if (activeTag === 'input' || activeTag === 'textarea') return;
             
-            const currentShortcut = doc.getAttribute('data-bet-shortcut');
+            const currentShortcut = parentDoc.getAttribute('data-bet-shortcut');
             if (currentShortcut && e.key.toLowerCase() === currentShortcut) {{
-                const buttons = doc.querySelectorAll('button');
-                buttons.forEach(b => {{
-                    if (b.innerText.includes('ΝΕΟ ΣΤΟΙΧΗΜΑ')) {{
-                        b.click();
-                        e.preventDefault(); 
+                const buttons = parentDoc.querySelectorAll('button');
+                let targetBtn = null;
+                for(let b of buttons) {{
+                    if(b.innerText.includes('ΝΕΟ ΣΤΟΙΧΗΜΑ')) {{
+                        targetBtn = b;
+                        break;
                     }}
-                }});
+                }}
+                
+                if (targetBtn) {{
+                    // Στέλνουμε πραγματικό click event που "ξεγελάει" το React!
+                    targetBtn.dispatchEvent(new MouseEvent('click', {{
+                        bubbles: true,
+                        cancelable: true,
+                        view: parentWin
+                    }}));
+                    e.preventDefault();
+                }}
             }}
         }});
-        doc.window_bet_shortcut_added = true;
+        parentWin.shortcut_listener_active = true;
     }}
     </script>
     """,
@@ -788,9 +803,8 @@ if page == "📊 Dashboard & Στατιστικά":
         curr_w_idx, curr_l_idx = [], []
         
         for idx, row in prog_df.iterrows():
-            # Για την Εξέλιξη Ταμείου / ROI
             current_p += row['Profit']
-            if row['Status'] != "🔵 Ακυρωμένο": # Τα void δεν μετράνε στο stake συνήθως, ή μετράνε με 0
+            if row['Status'] != "🔵 Ακυρωμένο":
                 current_s += row['Stake']
             
             status = row['Status']
@@ -807,7 +821,6 @@ if page == "📊 Dashboard & Στατιστικά":
             cum_roi.append(c_roi)
             cum_wr.append(c_wr)
 
-            # Για τα Σερί
             if status == "🟢 Κερδισμένο":
                 current_w += 1
                 curr_w_idx.append(row['Α/Α'])
@@ -832,7 +845,7 @@ if page == "📊 Dashboard & Στατιστικά":
         prog_df['Cumulative_Stake'] = cum_stake
         prog_df['Cumulative_ROI'] = cum_roi
         prog_df['Cumulative_WR'] = cum_wr
-        prog_df = prog_df.sort_values(by="DateTime", ascending=False) # Για να βλέπεις τα πιο πρόσφατα πάνω πάνω
+        prog_df = prog_df.sort_values(by="DateTime", ascending=False)
 
         max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
         max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
@@ -910,7 +923,7 @@ if page == "📊 Dashboard & Στατιστικά":
         with col_chart1:
             st.markdown("### 📉 Εξέλιξη Κέρδους")
             if not completed_bets.empty:
-                df_line = prog_df.sort_values(by="DateTime").copy() # Χρησιμοποιούμε το προ-υπολογισμένο
+                df_line = prog_df.sort_values(by="DateTime").copy()
                 df_line['Ημ/νια'] = pd.to_datetime(df_line['Date']).dt.strftime('%d/%m/%Y')
                 df_line['Bet_Count'] = range(1, len(df_line) + 1)
                 
