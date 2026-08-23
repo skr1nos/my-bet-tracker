@@ -51,19 +51,15 @@ st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 # ==========================================
 custom_css = """
 <style>
-/* 🔹 Εισαγωγή της γραμματοσειράς 'Poppins' */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-/* Εφαρμογή της γραμματοσειράς ΜΟΝΟ σε κείμενα (εξαιρούμε τα εικονίδια της πλατφόρμας) */
 html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p {
     font-family: 'Poppins', sans-serif !important;
 }
 
-/* Βασικό Background */
 .stApp { background-color: #0b172a; }
 [data-testid="stSidebar"] { background-color: #060d1a; border-right: 1px solid #1e3a5f; }
 
-/* 🔹 Ειδικά στυλ για τους τίτλους του Sidebar */
 .sidebar-header {
     font-size: 0.8rem;
     color: #4db8ff;
@@ -76,10 +72,8 @@ html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, bu
     padding-bottom: 8px;
 }
 
-/* Κρύβει το loading widget */
 [data-testid="stStatusWidget"] { display: none !important; }
 
-/* 🔹 Container Κάρτας (Επεξεργασία & Modals) */
 [data-testid="stVerticalBlockBorderWrapper"], div[role="dialog"] {
     background-color: #0f1c2e !important;
     border: 1px solid #1e3a5f !important;
@@ -87,7 +81,6 @@ html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, bu
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Modal Background */
 [data-testid="stDialog"] > div {
     background-color: #0b172a !important;
     border-radius: 20px !important;
@@ -95,7 +88,6 @@ html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, bu
 }
 [data-testid="stDialog"] header { background-color: #0b172a !important; }
 
-/* 🔹 Inputs Form */
 .stTextInput input, .stNumberInput input, 
 [data-baseweb="select"] > div, 
 .stDateInput input, .stTimeInput input {
@@ -112,7 +104,6 @@ div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within 
     box-shadow: inset 0 0 0 1px #4db8ff !important;
 }
 
-/* 🔹 Κεντρικό Κουμπί Πρωτεύον (Νέο Στοίχημα, Αποθήκευση) */
 button[kind="primary"] {
     background: linear-gradient(90deg, #10b981, #059669) !important;
     color: white !important;
@@ -128,7 +119,6 @@ button[kind="primary"]:hover {
 }
 button[kind="primary"] * { color: white !important; }
 
-/* 🔹 Δευτερεύοντα Κουμπιά / Στατιστικά (ΚΕΝΤΡΑΡΙΣΜΕΝΑ & ΟΜΟΙΟΜΟΡΦΑ) */
 button[kind="secondary"] {
     background-color: #16263b !important;
     border: 1px solid #1e3a5f !important;
@@ -159,7 +149,6 @@ button[kind="secondary"] p {
     width: 100% !important;
 }
 
-/* 🔹 SMART FLOATING EFFECT (PILL) - Ενεργοποιείται μέσω JS 🔹 */
 .fab-wrapper {
     position: fixed !important;
     bottom: 30px !important;
@@ -188,7 +177,6 @@ button[kind="secondary"] p {
 
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
 
-/* 🔹 ΜΕΝΟΥ ΠΛΟΗΓΗΣΗΣ (RADIO BUTTONS) */
 div[role="radiogroup"] > label {
     background-color: #16263b !important;
     padding: 12px 15px !important; 
@@ -316,17 +304,111 @@ def calc_overall_status(legs_list):
 # ==========================================
 # 🔍 ΑΝΑΔΥΟΜΕΝΑ ΠΑΡΑΘΥΡΑ (MODALS) 
 # ==========================================
+@st.dialog("🧾 Απόδειξη Στοιχήματος", width="large")
+def show_ticket_details(aa_val):
+    row = df[df['Α/Α'] == aa_val].iloc[0]
+    
+    status_color = "#4db8ff"
+    if row['Status'] == "🟢 Κερδισμένο": status_color = "#10b981"
+    elif row['Status'] == "🔴 Χαμένο": status_color = "#ef4444"
+    elif row['Status'] == "🟡 Cash Out": status_color = "#f59e0b"
+    elif row['Status'] == "🔵 Ακυρωμένο": status_color = "#3b82f6"
+    
+    st.markdown(f"""
+    <div style="background-color: #0f1c2e; padding: 25px; border-radius: 16px; border: 2px solid {status_color}; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div style="text-align: center; border-bottom: 1px dashed #1e3a5f; padding-bottom: 15px; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: {status_color}; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">{row['Status']}</h2>
+            <p style="margin: 5px 0 0 0; color: #a8dadc; font-size: 14px;">Α/Α Δελτίου: #{row['Α/Α']} | Ημ/νια: {row['Date'].strftime('%d/%m/%Y')} στις {row['Time'].strftime('%H:%M')}</p>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #4db8ff; text-transform: uppercase;">ΑΘΛΗΜΑ</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 600; color: #e2e8f0;">{row['Sport']}</p>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0; font-size: 12px; color: #4db8ff; text-transform: uppercase;">ΤΥΠΟΣ</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 600; color: #e2e8f0;">{row['Type']}</p>
+            </div>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #4db8ff; text-transform: uppercase; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px;">ΕΠΙΛΟΓΕΣ ΔΕΛΤΙΟΥ</p>
+    """, unsafe_allow_html=True)
+    
+    if row['Type'] == "Μονό":
+        st.markdown(f"""
+        <div style="background-color: #16263b; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid {status_color};">
+            <p style="margin: 0; font-weight: 600; color: #e2e8f0; font-size: 16px;">{row['Event']}</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                <span style="color: #4db8ff; font-size: 14px;">Αγορά: <span style="color: #ffffff;">{row['Market']}</span></span>
+                <span style="font-weight: 700; font-size: 16px; color: #e2e8f0;">{row['Odds']:.2f}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        legs_str = row['Legs_Data']
+        if pd.notna(legs_str) and legs_str.strip() != "":
+            try:
+                legs = json.loads(legs_str)
+                for leg in legs:
+                    l_st = leg.get('status', '⚪ Εκκρεμές')
+                    l_color = "#4db8ff"
+                    if "Κερδισμένο" in l_st: l_color = "#10b981"
+                    elif "Χαμένο" in l_st: l_color = "#ef4444"
+                    elif "Ακυρωμένο" in l_st: l_color = "#3b82f6"
+                    
+                    ev_name = leg.get('event', row['Event'])
+                    st.markdown(f"""
+                    <div style="background-color: #16263b; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid {l_color};">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; color: #e2e8f0; font-size: 15px;">{ev_name}</span>
+                            <span style="font-size: 12px; font-weight: 600; color: {l_color}; padding: 2px 8px; background-color: rgba(0,0,0,0.2); border-radius: 12px;">{l_st}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            <span style="color: #4db8ff; font-size: 14px;">Αγορά: <span style="color: #ffffff;">{leg.get('market', '-')}</span></span>
+                            <span style="font-weight: 700; font-size: 15px; color: #e2e8f0;">{float(leg.get('odds', 1.0)):.2f}</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            except Exception as e:
+                pass
+    
+    st.markdown(f"""
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px dashed #1e3a5f; padding-top: 15px;">
+            <div>
+                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Ποντάρισμα</p>
+                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #ffffff;">{row['Stake']:.2f} €</p>
+            </div>
+            <div style="text-align: center;">
+                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Συνολική Απόδοση</p>
+                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #ffffff;">{row['Odds']:.2f}</p>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0; font-size: 13px; color: #a8dadc;">Κέρδος / Ζημιά</p>
+                <p style="margin: 0; font-size: 20px; font-weight: 700; color: {status_color};">{row['Profit']:.2f} €</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 @st.dialog("📊 Λεπτομέρειες", width="large")
 def show_bets_dialog(title_str, df_to_show):
     st.markdown(f"<h3 style='color: #4db8ff;'>{title_str}</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #a8dadc; font-size: 14px; margin-bottom: 15px;'>💡 Κάνε κλικ σε οποιαδήποτε γραμμή του πίνακα για να δεις την αναλυτική απόδειξη του δελτίου.</p>", unsafe_allow_html=True)
     if not df_to_show.empty:
         disp = df_to_show.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
-        st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
+        event = st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row")
+        if event.selection.rows:
+            sel_idx = event.selection.rows[0]
+            sel_aa = disp.iloc[sel_idx]['Α/Α']
+            show_ticket_details(sel_aa)
     else:
         st.info("Δεν βρέθηκαν δελτία.")
 
 @st.dialog("📈 Ανάλυση Εξέλιξης", width="large")
 def show_progression_dialog(metric_type, prog_dataframe):
+    st.markdown("<p style='color: #a8dadc; font-size: 14px; margin-bottom: 15px;'>💡 Κάνε κλικ σε οποιαδήποτε γραμμή του πίνακα για να δεις το δελτίο που προκάλεσε αυτή τη μεταβολή.</p>", unsafe_allow_html=True)
     if prog_dataframe.empty:
         st.info("Δεν υπάρχουν δεδομένα.")
         return
@@ -373,7 +455,11 @@ def show_progression_dialog(metric_type, prog_dataframe):
             "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
         }
         
-    st.dataframe(disp_df, use_container_width=True, hide_index=True, column_config=cfg)
+    event = st.dataframe(disp_df, use_container_width=True, hide_index=True, column_config=cfg, on_select="rerun", selection_mode="single-row")
+    if event.selection.rows:
+        sel_idx = event.selection.rows[0]
+        sel_aa = disp_df.iloc[sel_idx]['Α/Α']
+        show_ticket_details(sel_aa)
 
 @st.dialog("➕ Καταχώρηση Νέου Δελτίου", width="large")
 def new_bet_dialog():
@@ -643,6 +729,7 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.markdown("<div class='sidebar-header'>🛠️ ΕΞΥΠΝΑ ΦΙΛΤΡΑ</div>", unsafe_allow_html=True)
+
 min_d = df['Date'].min() if not df.empty else date.today()
 max_d = df['Date'].max() if not df.empty else date.today()
 date_filter = st.sidebar.date_input("📅 Χρονικό Διάστημα", value=(min_d, max_d), format="DD/MM/YYYY")
@@ -667,12 +754,12 @@ if selected_type != "Όλοι οι Τύποι": filtered_df = filtered_df[filter
 # ==========================================
 st.title("📈 Στοιχηματικό Dashboard")
 
-# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ (ΜΕ ANCHOR ΓΙΑ ΝΑ ΞΕΡΕΙ ΠΟΤΕ ΝΑ ΑΙΩΡΕΙΤΑΙ) ---
+# --- ΤΟ FLOATING ΚΟΥΜΠΙ ΝΕΟΥ ΣΤΟΙΧΗΜΑΤΟΣ ---
 st.markdown("<div id='bet-button-anchor' style='height: 1px;'></div>", unsafe_allow_html=True)
 if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
     new_bet_dialog()
 
-# 🧠 JAVASCRIPT: Έξυπνος μηχανισμός για το αιωρούμενο (Floating) Κουμπί (PILL)
+# JAVASCRIPT: Έξυπνος μηχανισμός για το αιωρούμενο (Floating) Κουμπί (PILL)
 components.html(
     """
     <script>
@@ -696,7 +783,6 @@ components.html(
             if (scrollArea && !scrollArea.hasFabListener) {
                 scrollArea.addEventListener('scroll', function() {
                     const rect = anchor.getBoundingClientRect();
-                    // Όταν ο anchor φεύγει πάνω από την οθόνη (rect.bottom < 50px), γίνε floating!
                     if (rect.bottom < 50) {
                         targetBtn.classList.add('fab-wrapper');
                     } else {
@@ -1064,8 +1150,13 @@ elif page == "🗓️ Μηνιαία Αναφορά":
                 else: d_emoji = "⚪"; d_prof_str = f"{day_profit:.2f}"
                     
                 with st.expander(f"{d_emoji} {day_str}  |  Ημερήσιο Κέρδος: {d_prof_str} €", expanded=False):
+                    st.markdown("<p style='color: #a8dadc; font-size: 13px; margin-bottom: 10px;'>💡 Κάνε κλικ σε οποιοδήποτε δελτίο για να δεις την αναλυτική απόδειξη.</p>", unsafe_allow_html=True)
                     display_df = day_df.drop(columns=['MonthGroup', 'Legs_Data', 'JustDate', 'Week'])[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
-                    st.dataframe(display_df, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
+                    event = st.dataframe(display_df, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row")
+                    if event.selection.rows:
+                        sel_idx = event.selection.rows[0]
+                        sel_aa = display_df.iloc[sel_idx]['Α/Α']
+                        show_ticket_details(sel_aa)
             
             st.markdown("<br>", unsafe_allow_html=True)
 
