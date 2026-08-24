@@ -230,6 +230,14 @@ div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElem
     color: white !important; font-size: 16px !important; font-weight: bold !important;
 }
 
+/* 🔹 TABS STYLING */
+button[data-baseweb="tab"] {
+    background-color: transparent !important; color: #a8dadc !important; font-family: 'Poppins', sans-serif !important; font-weight: 500 !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: #4db8ff !important; border-bottom: 2px solid #4db8ff !important;
+}
+
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
 div[role="radiogroup"] > label {
     background-color: #16263b !important; padding: 12px 15px !important; 
@@ -267,8 +275,7 @@ def update_auto_odds(reset_id, num_legs):
         if leg_odds_key in st.session_state and leg_status_key in st.session_state:
             val = float(st.session_state[leg_odds_key])
             stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο":
-                total_odds *= val
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
     st.session_state['auto_odds_multi'] = total_odds
 
 def update_auto_odds_edit(aa_val, num_legs):
@@ -279,8 +286,7 @@ def update_auto_odds_edit(aa_val, num_legs):
         if leg_odds_key in st.session_state and leg_status_key in st.session_state:
             val = float(st.session_state[leg_odds_key])
             stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο":
-                total_odds *= val
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
     st.session_state['auto_odds_multi'] = total_odds
 
 # ==========================================
@@ -295,8 +301,7 @@ def find_team_match(t, norm_teams_dict):
     m = difflib.get_close_matches(t, norm_teams_dict.keys(), n=1, cutoff=0.65)
     if m: return norm_teams_dict[m[0]]
     for kt in norm_teams_dict.keys():
-        if t in kt and len(t) >= 4:
-            return norm_teams_dict[kt]
+        if t in kt and len(t) >= 4: return norm_teams_dict[kt]
     return t
 
 def get_event_suggestions(user_text, all_events, all_teams):
@@ -379,27 +384,17 @@ def calc_overall_status(legs_list):
 # ==========================================
 def render_ticket_html(aa_val, df_source):
     row = df_source[df_source['Α/Α'] == aa_val].iloc[0]
-    
     status_color = "#4db8ff"
     stamp_text = ""
     stamp_color = ""
-    
     if row['Status'] == "🟢 Κερδισμένο": 
-        status_color = "#10b981"
-        stamp_text = "WON"
-        stamp_color = "rgba(16, 185, 129, 0.15)"
+        status_color = "#10b981"; stamp_text = "WON"; stamp_color = "rgba(16, 185, 129, 0.15)"
     elif row['Status'] == "🔴 Χαμένο": 
-        status_color = "#ef4444"
-        stamp_text = "LOST"
-        stamp_color = "rgba(239, 68, 68, 0.15)"
+        status_color = "#ef4444"; stamp_text = "LOST"; stamp_color = "rgba(239, 68, 68, 0.15)"
     elif row['Status'] == "🟡 Cash Out": 
-        status_color = "#f59e0b"
-        stamp_text = "CASH OUT"
-        stamp_color = "rgba(245, 158, 11, 0.15)"
+        status_color = "#f59e0b"; stamp_text = "CASH OUT"; stamp_color = "rgba(245, 158, 11, 0.15)"
     elif row['Status'] == "🔵 Ακυρωμένο": 
-        status_color = "#3b82f6"
-        stamp_text = "VOID"
-        stamp_color = "rgba(59, 130, 246, 0.15)"
+        status_color = "#3b82f6"; stamp_text = "VOID"; stamp_color = "rgba(59, 130, 246, 0.15)"
     
     total_return = row['Stake'] + row['Profit'] if row['Status'] != "⚪ Εκκρεμές" else 0.0
     profit_str = f"+{row['Profit']:.2f} €" if row['Profit'] > 0 else f"{row['Profit']:.2f} €"
@@ -407,24 +402,16 @@ def render_ticket_html(aa_val, df_source):
     
     html_parts = []
     html_parts.append(f'<div style="background: linear-gradient(135deg, #16263b, #0f1c2e); padding: 30px; border-radius: 16px; border: 1px solid #1e3a5f; box-shadow: 0 15px 35px rgba(0,0,0,0.6); position: relative; overflow: hidden; font-family: \'Poppins\', sans-serif;">')
-    
     if stamp_text:
         html_parts.append(f"<div style='position:absolute; top:50px; right:10px; color:{stamp_color}; font-size:65px; font-weight:900; transform:rotate(-15deg); border:4px solid {stamp_color}; padding:5px 15px; border-radius:15px; z-index:0; pointer-events:none; letter-spacing: 2px;'>{stamp_text}</div>")
-    
     html_parts.append(f'''<div style="text-align: center; border-bottom: 2px dashed #2a4365; padding-bottom: 15px; margin-bottom: 20px; position: relative; z-index: 1;">
         <p style="margin: 0; color: #a8dadc; font-size: 13px; letter-spacing: 1px;">TICKET ID: {ticket_id}</p>
         <h2 style="margin: 5px 0 0 0; color: {status_color}; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;">{row['Status']}</h2>
         <p style="margin: 5px 0 0 0; color: #718096; font-size: 13px;">{row['Date'].strftime('%d/%m/%Y')} • {row['Time'].strftime('%H:%M')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 20px; position: relative; z-index: 1;">
-        <div>
-            <p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΑΘΛΗΜΑ</p>
-            <p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Sport']}</p>
-        </div>
-        <div style="text-align: right;">
-            <p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΤΥΠΟΣ</p>
-            <p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Type']}</p>
-        </div>
+        <div><p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΑΘΛΗΜΑ</p><p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Sport']}</p></div>
+        <div style="text-align: right;"><p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΤΥΠΟΣ</p><p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Type']}</p></div>
     </div>
     <div style="margin-bottom: 25px; position: relative; z-index: 1;">
         <p style="margin: 0 0 15px 0; font-size: 12px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px;">ΕΠΙΛΟΓΕΣ ΔΕΛΤΙΟΥ</p>''')
@@ -448,7 +435,6 @@ def render_ticket_html(aa_val, df_source):
                     if "Κερδισμένο" in l_st: l_color = "#10b981"
                     elif "Χαμένο" in l_st: l_color = "#ef4444"
                     elif "Ακυρωμένο" in l_st: l_color = "#3b82f6"
-                    
                     ev_name = leg.get('event', row['Event'])
                     html_parts.append(f'''<div style="background-color: rgba(6, 13, 26, 0.5); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid {l_color};">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -460,34 +446,20 @@ def render_ticket_html(aa_val, df_source):
                             <span style="font-weight: 700; font-size: 16px; color: #4db8ff;">{float(leg.get('odds', 1.0)):.2f}</span>
                         </div>
                     </div>''')
-            except Exception:
-                pass
+            except Exception: pass
     
     html_parts.append(f'''</div>
     <div style="border-top: 2px dashed #2a4365; padding-top: 20px; position: relative; z-index: 1;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
-            <div>
-                <p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΠΟΝΤΑΡΙΣΜΑ</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Stake']:.2f} €</p>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΣΥΝ. ΑΠΟΔΟΣΗ</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Odds']:.2f}</p>
-            </div>
+            <div><p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΠΟΝΤΑΡΙΣΜΑ</p><p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Stake']:.2f} €</p></div>
+            <div style="text-align: right;"><p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΣΥΝ. ΑΠΟΔΟΣΗ</p><p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Odds']:.2f}</p></div>
         </div>
         <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΣΥΝ. ΕΠΙΣΤΡΟΦΗ</p>
-                <p style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">{total_return:.2f} €</p>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΚΑΘΑΡΟ ΚΕΡΔΟΣ</p>
-                <p style="margin: 0; font-size: 24px; font-weight: 700; color: {status_color};">{profit_str}</p>
-            </div>
+            <div><p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΣΥΝ. ΕΠΙΣΤΡΟΦΗ</p><p style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">{total_return:.2f} €</p></div>
+            <div style="text-align: right;"><p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΚΑΘΑΡΟ ΚΕΡΔΟΣ</p><p style="margin: 0; font-size: 24px; font-weight: 700; color: {status_color};">{profit_str}</p></div>
         </div>
     </div>
     </div>''')
-    
     st.markdown("".join(html_parts), unsafe_allow_html=True)
 
 @st.dialog("🧾 Απόδειξη Στοιχήματος", width="large")
@@ -504,7 +476,6 @@ def show_bets_dialog(title_str, df_to_show, full_df):
     if not df_to_show.empty:
         disp = df_to_show.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
         event = st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row")
-        
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
@@ -546,13 +517,7 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
         st.markdown("<h3 style='color: #4db8ff; font-family: Poppins;'>📉 Εξέλιξη Βύθισης Ταμείου (Drawdown)</h3>", unsafe_allow_html=True)
         disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Profit', 'Cumulative_Profit', 'Peak', 'Drawdown']].copy()
         disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Profit': 'Κέρδος/Ζημιά', 'Cumulative_Profit': 'Συνολικό Κέρδος', 'Peak': 'Κορυφή (Peak)', 'Drawdown': 'Βύθιση (DD)'}, inplace=True)
-        cfg = {
-            "Βύθιση (DD)": st.column_config.NumberColumn("Βύθιση (€)", format="%.2f €"),
-            "Κορυφή (Peak)": st.column_config.NumberColumn("Κορυφή (€)", format="%.2f €"),
-            "Συνολικό Κέρδος": st.column_config.NumberColumn("Συνολικό Κέρδος (€)", format="%.2f €"),
-            "Κέρδος/Ζημιά": st.column_config.NumberColumn("Κέρδος/Ζημιά", format="%.2f €"),
-            "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
-        }
+        cfg = {"Βύθιση (DD)": st.column_config.NumberColumn("Βύθιση (€)", format="%.2f €"), "Κορυφή (Peak)": st.column_config.NumberColumn("Κορυφή (€)", format="%.2f €"), "Συνολικό Κέρδος": st.column_config.NumberColumn("Συνολικό Κέρδος (€)", format="%.2f €"), "Κέρδος/Ζημιά": st.column_config.NumberColumn("Κέρδος/Ζημιά", format="%.2f €"), "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")}
         
     event = st.dataframe(disp_df, use_container_width=True, hide_index=True, column_config=cfg, on_select="rerun", selection_mode="single-row")
     if event.selection.rows:
@@ -568,10 +533,9 @@ def new_bet_dialog():
     st.markdown("<br>", unsafe_allow_html=True)
     bet_type = st.radio("Τύπος Στοιχήματος", BET_TYPES, horizontal=True, key=f"bet_type_{reset_id}")
     num_legs = 2
-    if bet_type != "Μονό":
-        num_legs = st.number_input("Πόσα σημεία (ή αγώνες) έχει το δελτίο;", min_value=2, max_value=15, value=2, key=f"legs_num_{reset_id}")
+    if bet_type != "Μονό": num_legs = st.number_input("Πόσα σημεία (ή αγώνες) έχει το δελτίο;", min_value=2, max_value=15, value=2, key=f"legs_num_{reset_id}")
     
-    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
+    st.markdown("<h5 style='color:#a8dadc; border-bottom:1px solid #1e3a5f; padding-bottom:5px; margin-top:15px; font-family: Poppins;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     d = c1.date_input("Ημερομηνία", date.today(), format="DD/MM/YYYY", key=f"date_{reset_id}")
     t = c2.time_input("Ώρα", datetime.now().time(), step=60, key=f"time_{reset_id}")
@@ -584,7 +548,7 @@ def new_bet_dialog():
     st.markdown("---")
     
     if bet_type == "Μονό":
-        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>2. Αγώνας & Αγορά</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#a8dadc; border-bottom:1px solid #1e3a5f; padding-bottom:5px; margin-top:15px; font-family: Poppins;'>2. Αγώνας & Αγορά</h5>", unsafe_allow_html=True)
         c_ev, c_ma = st.columns(2)
         event_key = f"ev_single_txt_{reset_id}"
         event_str = c_ev.text_input("Αγώνας:", key=event_key)
@@ -595,12 +559,11 @@ def new_bet_dialog():
         
     elif bet_type == "Bet Builder":
         st.info("💡 Στο απλό Bet Builder (ίδιος αγώνας), η συνολική απόδοση δίνεται από τον bookmaker. Συμπλήρωσέ τη χειροκίνητα στο Βήμα 3!")
-        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>2. Κοινός Αγώνας & Σημεία</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#a8dadc; border-bottom:1px solid #1e3a5f; padding-bottom:5px; margin-top:15px; font-family: Poppins;'>2. Κοινός Αγώνας & Σημεία</h5>", unsafe_allow_html=True)
         c_ev, _ = st.columns(2)
         event_key = f"bb_ev_txt_{reset_id}"
         event_str = c_ev.text_input("Αγώνας (Για όλα τα σημεία):", key=event_key)
         render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
-
         st.markdown("<br>", unsafe_allow_html=True)
         for i in range(int(num_legs)):
             cc2, cc3, cc4 = st.columns([3,1,2])
@@ -614,32 +577,27 @@ def new_bet_dialog():
             else: auto_odds *= l_od
 
     elif bet_type == "Παρολί με Bet Builders":
-        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>2. Αγώνες & Σημεία (Bet Builders)</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#a8dadc; border-bottom:1px solid #1e3a5f; padding-bottom:5px; margin-top:15px; font-family: Poppins;'>2. Αγώνες & Σημεία (Bet Builders)</h5>", unsafe_allow_html=True)
         temp_odds = 1.0
         for i in range(int(num_legs)):
             st.markdown(f"<div style='background-color: rgba(22, 38, 59, 0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #4db8ff;'>", unsafe_allow_html=True)
             c_ev, c_od, c_st = st.columns([4,2,2])
-            
             l_ev_key = f"pbb_ev_{i}_{reset_id}"
             l_ev = c_ev.text_input(f"Αγώνας {i+1}:", key=l_ev_key)
             render_suggestions(c_ev, l_ev_key, l_ev, get_event_suggestions, (all_events, all_teams))
-            
             l_od = c_od.number_input(f"Απόδοση Αγώνα:", min_value=1.00, step=0.01, value=1.50, key=f"leg_od_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
             l_st = c_st.selectbox(f"Κατάσταση:", STATUS_LIST, key=f"leg_st_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
-            
             l_ma_key = f"pbb_ma_{i}_{reset_id}"
             l_ma = st.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", height=80, key=l_ma_key, placeholder="π.χ.\n1 & Over 2.5\nΣκοράρει ο Vini")
             st.markdown("</div>", unsafe_allow_html=True)
-            
             clean_ma = l_ma.replace('\n', ' | ') if l_ma else ""
             legs.append({"event": l_ev, "market": clean_ma, "odds": l_od, "status": l_st})
             if l_st != "🔵 Ακυρωμένο": temp_odds *= l_od
-            
         if 'auto_odds_multi' not in st.session_state or st.session_state['auto_odds_multi'] == 1.0:
             st.session_state['auto_odds_multi'] = temp_odds
 
     else: 
-        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>2. Ανάλυση Σημείων</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='color:#a8dadc; border-bottom:1px solid #1e3a5f; padding-bottom:5px; margin-top:15px; font-family: Poppins;'>2. Ανάλυση Σημείων</h5>", unsafe_allow_html=True)
         temp_odds = 1.0
         for i in range(int(num_legs)):
             cc1, cc2, cc3, cc4 = st.columns([3,3,1,2])
@@ -649,17 +607,14 @@ def new_bet_dialog():
             l_ma_key = f"ma_t_{i}_{reset_id}"
             l_ma = cc2.text_input(f"Σημείο {i+1}", key=l_ma_key)
             render_suggestions(cc2, l_ma_key, l_ma, get_market_suggestions, (all_markets,))
-            
             l_od = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=1.50, key=f"leg_od_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
             l_st = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, key=f"leg_st_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
-            
             legs.append({"event": l_ev, "market": l_ma, "odds": l_od, "status": l_st})
             if l_st != "🔵 Ακυρωμένο": temp_odds *= l_od
-            
         if 'auto_odds_multi' not in st.session_state or st.session_state['auto_odds_multi'] == 1.0:
             st.session_state['auto_odds_multi'] = temp_odds
             
-    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>3. Αποδόσεις & Ποντάρισμα</h5>", unsafe_allow_html=True)
+    st.markdown("<h5 style='color:#a8dadc; border-bottom:1px solid #1e3a5f; padding-bottom:5px; margin-top:15px; font-family: Poppins;'>3. Αποδόσεις & Ποντάρισμα</h5>", unsafe_allow_html=True)
     c5, c6, c7, c8 = st.columns(4)
     if bet_type == "Μονό":
         odds = c5.number_input("Απόδοση", min_value=1.01, step=0.01, value=round(global_avg_odds, 2), key=f"odds_single_{reset_id}")
@@ -721,9 +676,7 @@ def new_bet_dialog():
             market_str = " | ".join(market_parts)
         
         try:
-           new_data = pd.DataFrame([{
-               'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 'Status': status, 'Profit': profit, 'Legs_Data': legs_json
-           }])
+           new_data = pd.DataFrame([{'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 'Status': status, 'Profit': profit, 'Legs_Data': legs_json}])
            df_to_save = pd.concat([df.drop(columns=['Α/Α'], errors='ignore'), new_data], ignore_index=True)
            save_data(df_to_save)
            st.session_state['show_toast'] = True
@@ -847,7 +800,6 @@ st.sidebar.markdown("<div class='sidebar-header'>🏦 ΚΕΦΑΛΑΙΟ (BANKROLL
 starting_bankroll = st.sidebar.number_input("Αρχική Κάβα (€)", value=0.0, step=10.0, format="%.2f")
 
 st.sidebar.markdown("<div class='sidebar-header'>🛠️ ΕΞΥΠΝΑ ΦΙΛΤΡΑ</div>", unsafe_allow_html=True)
-
 quick_date = st.sidebar.radio("⏱️ Χρονικό Διάστημα", ["Όλα", "Σήμερα", "Τελευταίες 7 Ημέρες", "Αυτός ο Μήνας", "Χειροκίνητα..."])
 if quick_date == "Όλα":
     min_d = df['Date'].min() if not df.empty else date.today()
@@ -1000,57 +952,45 @@ if page == "📊 Dashboard & Στατιστικά":
             else: 
                 current_w = 0; curr_w_idx = []; current_l = 0; curr_l_idx = []
 
-        count_won = len(filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"])
-        count_lost = len(filtered_df[filtered_df['Status'] == "🔴 Χαμένο"])
-        count_cashout = len(filtered_df[filtered_df['Status'] == "🟡 Cash Out"])
-        count_void = len(filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"])
-        count_pending = len(filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"])
-
-        # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ ---
+        # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ (12 Κάρτες σε 3 Γραμμές) ---
         st.markdown("### 🏆 Στατιστικά Ταμείου & Money Management")
         
         col_a, col_b, col_c, col_d = st.columns(4)
         p_delta_str = f"\n( Κέρδος: 🟢 +{profit_delta:.2f} € )" if profit_delta and profit_delta > 0 else (f"\n( Ζημιά: 🔴 {profit_delta:.2f} € )" if profit_delta else "")
+        st.markdown('<div class="marker-positive"></div>' if total_profit >= 0 else '<div class="marker-negative"></div>', unsafe_allow_html=True)
+        if col_a.button(f"Καθαρό Κέρδος\n{total_profit:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
+            show_progression_dialog("profit", prog_df, df)
+
         st.markdown('<div class="marker-positive"></div>' if current_balance >= starting_bankroll else '<div class="marker-negative"></div>', unsafe_allow_html=True)
-        if col_a.button(f"Τρέχον Υπόλοιπο\n{current_balance:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
+        if col_b.button(f"Τρέχον Υπόλοιπο\n{current_balance:.2f} €", key="btn_bal", use_container_width=True):
             show_progression_dialog("profit", prog_df, df)
 
         r_delta_str = f"\n( 🟢 +{roi_delta:.2f} % )" if roi_delta and roi_delta > 0 else (f"\n( 🔴 {roi_delta:.2f} % )" if roi_delta else "")
         st.markdown('<div class="marker-positive"></div>' if roi_delta and roi_delta > 0 else ('<div class="marker-negative"></div>' if roi_delta else ''), unsafe_allow_html=True)
-        if col_b.button(f"Yield (ROI)\n{yield_pct:.2f} %{r_delta_str}", key="btn_roi", use_container_width=True):
+        if col_c.button(f"Yield (ROI)\n{yield_pct:.2f} %{r_delta_str}", key="btn_roi", use_container_width=True):
             show_progression_dialog("roi", prog_df, df)
 
         w_delta_str = f"\n( 🟢 +{win_rate_delta:.1f} % )" if win_rate_delta and win_rate_delta > 0 else (f"\n( 🔴 {win_rate_delta:.1f} % )" if win_rate_delta else "")
         st.markdown('<div class="marker-positive"></div>' if win_rate_delta and win_rate_delta > 0 else ('<div class="marker-negative"></div>' if win_rate_delta else ''), unsafe_allow_html=True)
-        if col_c.button(f"Win Rate\n{win_rate:.1f} %{w_delta_str}", key="btn_wr", use_container_width=True):
+        if col_d.button(f"Win Rate\n{win_rate:.1f} %{w_delta_str}", key="btn_wr", use_container_width=True):
             show_progression_dialog("wr", prog_df, df)
         
-        st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
-        if col_d.button(f"Συνολικό Ποντάρισμα\n{total_staked:.2f} €", key="btn_staked", use_container_width=True):
-            show_bets_dialog("💰 Όλα τα Πονταρισμένα Δελτία", completed_bets, df)
-
         col_e, col_f, col_g, col_h = st.columns(4)
         st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
-        if col_e.button(f"Σύνολο Στοιχημάτων\n{total_bets}", key="btn_all", use_container_width=True):
-            show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets, df)
-
-        st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
-        if col_f.button(f"Μέγιστο Κέρδος Δελτίου\n+{max_single_profit:.2f} € 🏆", key="btn_max_prof_bet", use_container_width=True):
-            if max_profit_aa:
-                st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
-                st.session_state['auto_open_ticket'] = int(max_profit_aa)
-                st.rerun()
-            else:
-                st.toast("Δεν υπάρχει κερδισμένο δελτίο!", icon="⚠️")
+        if col_e.button(f"Συνολικό Ποντάρισμα\n{total_staked:.2f} €", key="btn_staked", use_container_width=True):
+            show_bets_dialog("💰 Όλα τα Πονταρισμένα Δελτία", completed_bets, df)
 
         st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
-        if col_g.button(f"Max Drawdown\n{max_drawdown:.2f} € 📉", key="btn_dd", use_container_width=True):
+        if col_f.button(f"Max Drawdown\n{max_drawdown:.2f} € 📉", key="btn_dd", use_container_width=True):
             show_progression_dialog("drawdown", prog_df, df)
 
-        o_delta_str = f"\n( 🟢 +{odds_delta:.2f} )" if odds_delta and odds_delta > 0 else (f"\n( 🔴 {odds_delta:.2f} )" if odds_delta else "")
-        st.markdown('<div class="marker-positive"></div>' if odds_delta and odds_delta > 0 else ('<div class="marker-negative"></div>' if odds_delta else ''), unsafe_allow_html=True)
-        if col_h.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
-            show_progression_dialog("avg_odds", prog_df, df)
+        st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
+        if col_g.button(f"Κορυφή Ταμείου (ATH)\n{peak_bankroll:.2f} € 🏔️", key="btn_ath", use_container_width=True):
+            show_progression_dialog("profit", prog_df, df)
+
+        st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
+        if col_h.button(f"Σύνολο Στοιχημάτων\n{total_bets}", key="btn_all", use_container_width=True):
+            show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets, df)
 
         col_i, col_j, col_k, col_l = st.columns(4)
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
@@ -1060,14 +1000,15 @@ if page == "📊 Dashboard & Στατιστικά":
         st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
         if col_j.button(f"Μέγιστο Σερί Ηττών\n{max_lose_streak} 🔴", key="btn_l_streak", use_container_width=True): 
             show_bets_dialog(f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)", df[df['Α/Α'].isin(lose_streak_idx)], df)
+
+        o_delta_str = f"\n( 🟢 +{odds_delta:.2f} )" if odds_delta and odds_delta > 0 else (f"\n( 🔴 {odds_delta:.2f} )" if odds_delta else "")
+        st.markdown('<div class="marker-positive"></div>' if odds_delta and odds_delta > 0 else ('<div class="marker-negative"></div>' if odds_delta else ''), unsafe_allow_html=True)
+        if col_k.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
+            show_progression_dialog("avg_odds", prog_df, df)
         
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
-        if col_k.button(f"Μέγιστη Απόδοση\n{max_win_odds:.2f} 🎯", key="btn_max_odds", use_container_width=True): 
+        if col_l.button(f"Μέγιστη Απόδοση\n{max_win_odds:.2f} 🎯", key="btn_max_odds", use_container_width=True): 
             show_bets_dialog(f"🏆 Δελτίο με Μέγιστη Κερδισμένη Απόδοση ({max_win_odds})", df[df['Α/Α'] == max_win_odds_aa], df)
-
-        st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
-        if col_l.button(f"Κορυφή Ταμείου (ATH)\n{peak_bankroll:.2f} € 🏔️", key="btn_ath", use_container_width=True):
-            show_progression_dialog("profit", prog_df, df)
 
         # 🧠 ΑΝΑΤΟΜΙΑ ΣΤΟΙΧΗΜΑΤΩΝ (ADVANCED ANALYTICS)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -1086,13 +1027,16 @@ if page == "📊 Dashboard & Στατιστικά":
                 s_wl = s_df[s_df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
                 s_wr = (len(s_wl[s_wl['Profit'] > 0]) / len(s_wl) * 100) if len(s_wl) > 0 else 0
                 sport_stats.append({"Άθλημα": sport, "Δελτία": len(s_df), "Win Rate (%)": s_wr, "ROI (%)": s_roi, "Κέρδος (€)": s_profit})
-            sport_df = pd.DataFrame(sport_stats).sort_values(by="Κέρδος (€)", ascending=False)
-            cfg_sport = {
-                "Win Rate (%)": st.column_config.ProgressColumn("Win Rate", format="%.1f%%", min_value=0, max_value=100),
-                "ROI (%)": st.column_config.NumberColumn("ROI", format="%.1f%%"),
-                "Κέρδος (€)": st.column_config.NumberColumn("Κέρδος", format="%.2f €")
-            }
-            st.dataframe(sport_df, use_container_width=True, hide_index=True, column_config=cfg_sport)
+            if sport_stats:
+                sport_df = pd.DataFrame(sport_stats).sort_values(by="Κέρδος (€)", ascending=False)
+                cfg_sport = {
+                    "Win Rate (%)": st.column_config.ProgressColumn("Win Rate", format="%.1f%%", min_value=0, max_value=100),
+                    "ROI (%)": st.column_config.NumberColumn("ROI", format="%.1f%%"),
+                    "Κέρδος (€)": st.column_config.NumberColumn("Κέρδος", format="%.2f €")
+                }
+                st.dataframe(sport_df, use_container_width=True, hide_index=True, column_config=cfg_sport)
+            else:
+                st.info("Δεν υπάρχουν ολοκληρωμένα δελτία για ανάλυση αθλημάτων.")
 
         with col_o:
             st.markdown("#### ⚖️ Ανάλυση Αποδόσεων")
@@ -1121,7 +1065,12 @@ if page == "📊 Dashboard & Στατιστικά":
         col_chart1, col_chart2 = st.columns(2)
         with col_chart1:
             st.markdown("### 📉 Εξέλιξη Ταμείου")
+            chart_mode = st.radio("Επιλογή Προβολής:", ["Καθαρό Κέρδος", "Τρέχον Υπόλοιπο (Με Κάβα)"], horizontal=True, label_visibility="collapsed")
             if not completed_bets.empty:
+                y_col = 'Cumulative_Profit' if chart_mode == "Καθαρό Κέρδος" else 'Balance'
+                y_title = "Καθαρό Κέρδος (€)" if chart_mode == "Καθαρό Κέρδος" else "Υπόλοιπο (€)"
+                zero_val = 0.0 if chart_mode == "Καθαρό Κέρδος" else starting_bankroll
+                
                 df_line = prog_df.sort_values(by="DateTime").copy()
                 df_line['Ημ/νια'] = pd.to_datetime(df_line['Date']).dt.strftime('%d/%m/%Y')
                 df_line['Bet_Count'] = range(1, len(df_line) + 1)
@@ -1130,17 +1079,17 @@ if page == "📊 Dashboard & Στατιστικά":
                 
                 base = alt.Chart(df_line).encode(
                     x=alt.X('Bet_Count:Q', axis=alt.Axis(labels=False, title=None, ticks=False, grid=False)),
-                    y=alt.Y('Balance:Q', title="Υπόλοιπο (€)", axis=alt.Axis(gridColor="#1f2937"))
+                    y=alt.Y(f'{y_col}:Q', title=y_title, axis=alt.Axis(gridColor="#1f2937"))
                 )
                 
                 area = base.mark_area(interpolate='basis', opacity=0.3).encode(
-                    color=alt.condition(alt.datum.Balance >= starting_bankroll, alt.value('#10b981'), alt.value('#ef4444'))
+                    color=alt.condition(alt.datum[y_col] >= zero_val, alt.value('#10b981'), alt.value('#ef4444'))
                 )
                 line = base.mark_line(interpolate='basis', strokeWidth=4).encode(
-                    color=alt.condition(alt.datum.Balance >= starting_bankroll, alt.value('#4ade80'), alt.value('#ff4b4b'))
+                    color=alt.condition(alt.datum[y_col] >= zero_val, alt.value('#4ade80'), alt.value('#ff4b4b'))
                 )
                 hover_points = base.mark_circle(size=300, color="transparent").encode(
-                    tooltip=[alt.Tooltip('Ημ/νια:N', title='Ημερομηνία'), alt.Tooltip('Balance:Q', title='Υπόλοιπο (€)', format='.2f')]
+                    tooltip=[alt.Tooltip('Ημ/νια:N', title='Ημερομηνία'), alt.Tooltip(f'{y_col}:Q', title=y_title, format='.2f')]
                 )
                 chart = (area + line + hover_points).properties(height=350)
                 st.altair_chart(chart, use_container_width=True, theme="streamlit")
@@ -1323,9 +1272,7 @@ elif page == "🗓️ Μηνιαία Αναφορά":
                     if event.selection.rows:
                         sel_idx = event.selection.rows[0]
                         sel_aa = display_df.iloc[sel_idx]['Α/Α']
-                        st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
-                        st.session_state['auto_open_ticket'] = int(sel_aa)
-                        st.rerun()
+                        show_ticket_modal(sel_aa, df)
             st.markdown("<br>", unsafe_allow_html=True)
 
 elif page == "⚙️ Διαχείριση Ιστορικού":
@@ -1455,7 +1402,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                             
                             l_od_final = c_od.number_input(f"Απόδοση Αγώνα:", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
                             st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
-                            l_st_final = c_st.selectbox(f"Κατάσταση:", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                            l_st_final = c_st.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
                             
                             ed_lma_key = f"ed_pbb_ma_{i}_{selected_aa}"
                             l_ma_final = st.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", value=leg_ma, height=80, key=ed_lma_key)
