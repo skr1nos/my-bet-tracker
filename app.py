@@ -11,6 +11,7 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
+import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -52,6 +53,7 @@ custom_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
+/* Εφαρμογή γραμματοσειράς ΜΟΝΟ σε κείμενα */
 html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p {
     font-family: 'Poppins', sans-serif !important;
 }
@@ -240,11 +242,18 @@ div[role="radiogroup"] > label {
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
+# Αρχικοποίηση State Μεταβλητών
 if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_counter'] = 0
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
 if 'page_sel' not in st.session_state: st.session_state['page_sel'] = "📊 Dashboard & Στατιστικά"
 if 'auto_odds_multi' not in st.session_state: st.session_state['auto_odds_multi'] = 1.0
+if 'redirect_to' not in st.session_state: st.session_state['redirect_to'] = None
+
+# Ο ΣΩΣΤΟΣ ΤΡΟΠΟΣ ΑΝΑΚΑΤΕΥΘΥΝΣΗΣ ΣΤΟ STREAMLIT
+if st.session_state['redirect_to']:
+    st.session_state['page_sel'] = st.session_state['redirect_to']
+    st.session_state['redirect_to'] = None
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -369,7 +378,7 @@ def calc_overall_status(legs_list):
     else: return "🔵 Ακυρωμένο"
 
 # ==========================================
-# 🧾 PREMIUM DIGITAL RECEIPT (TICKET)
+# 🧾 PREMIUM DIGITAL RECEIPT
 # ==========================================
 def render_ticket_html(aa_val, df_source):
     row = df_source[df_source['Α/Α'] == aa_val].iloc[0]
@@ -503,7 +512,7 @@ def show_bets_dialog(title_str, df_to_show, full_df):
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
             st.session_state['auto_open_ticket'] = int(sel_aa)
-            st.session_state['page_sel'] = "🗓️ Μηνιαία Αναφορά"
+            st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
             st.rerun()
     else:
         st.info("Δεν βρέθηκαν δελτία.")
@@ -553,7 +562,7 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
         sel_idx = event.selection.rows[0]
         sel_aa = disp_df.iloc[sel_idx]['Α/Α']
         st.session_state['auto_open_ticket'] = int(sel_aa)
-        st.session_state['page_sel'] = "🗓️ Μηνιαία Αναφορά"
+        st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
         st.rerun()
 
 @st.dialog("➕ Καταχώρηση Νέου Δελτίου", width="large")
@@ -715,7 +724,9 @@ def new_bet_dialog():
             market_str = " | ".join(market_parts)
         
         try:
-           new_data = pd.DataFrame([{'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 'Status': status, 'Profit': profit, 'Legs_Data': legs_json}])
+           new_data = pd.DataFrame([{
+               'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 'Status': status, 'Profit': profit, 'Legs_Data': legs_json
+           }])
            df_to_save = pd.concat([df.drop(columns=['Α/Α'], errors='ignore'), new_data], ignore_index=True)
            save_data(df_to_save)
            st.session_state['show_toast'] = True
@@ -1023,8 +1034,8 @@ if page == "📊 Dashboard & Στατιστικά":
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
         if col_f.button(f"Μέγιστο Κέρδος Δελτίου\n+{max_single_profit:.2f} € 🏆", key="btn_max_prof_bet", use_container_width=True):
             if max_profit_aa:
+                st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
                 st.session_state['auto_open_ticket'] = int(max_profit_aa)
-                st.session_state['page_sel'] = "🗓️ Μηνιαία Αναφορά"
                 st.rerun()
             else:
                 st.toast("Δεν υπάρχει κερδισμένο δελτίο!", icon="⚠️")
@@ -1407,7 +1418,9 @@ elif page == "🗓️ Μηνιαία Αναφορά":
                     if event.selection.rows:
                         sel_idx = event.selection.rows[0]
                         sel_aa = display_df.iloc[sel_idx]['Α/Α']
-                        show_ticket_modal(sel_aa, df)
+                        st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
+                        st.session_state['auto_open_ticket'] = int(sel_aa)
+                        st.rerun()
             st.markdown("<br>", unsafe_allow_html=True)
 
 elif page == "⚙️ Διαχείριση Ιστορικού":
