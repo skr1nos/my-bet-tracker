@@ -11,7 +11,6 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -53,6 +52,7 @@ custom_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
+/* Εφαρμογή γραμματοσειράς ΜΟΝΟ σε κείμενα */
 html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p {
     font-family: 'Poppins', sans-serif !important;
 }
@@ -190,7 +190,6 @@ div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stEle
     color: #3b82f6 !important; font-weight: 600 !important;
 }
 
-/* Χρυσή Ομάδα */
 div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button {
     border: 1px solid #fbbf24 !important; background-color: rgba(251, 191, 36, 0.05) !important;
 }
@@ -198,7 +197,6 @@ div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stEle
     color: #fbbf24 !important; font-weight: 600 !important;
 }
 
-/* Μαύρη Λίστα */
 div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button {
     border: 1px solid #9ca3af !important; background-color: rgba(156, 163, 175, 0.05) !important;
 }
@@ -206,7 +204,6 @@ div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stEle
     color: #9ca3af !important; font-weight: 600 !important;
 }
 
-/* Παίκτες */
 div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button {
     border: 1px solid #c084fc !important; background-color: rgba(192, 132, 252, 0.05) !important;
 }
@@ -282,7 +279,7 @@ def update_auto_odds_edit(aa_val, num_legs):
     st.session_state['auto_odds_multi'] = total_odds
 
 # ==========================================
-# 🧠 AI-Like Έξυπνη Αναζήτηση & Διόρθωση 
+# 🧠 AI-Like Έξυπνη Αναζήτηση 
 # ==========================================
 def normalize_greek(text):
     if not text: return ""
@@ -373,7 +370,7 @@ def calc_overall_status(legs_list):
     else: return "🔵 Ακυρωμένο"
 
 # ==========================================
-# 🧾 PREMIUM DIGITAL RECEIPT (TICKET)
+# 🧾 PREMIUM DIGITAL RECEIPT
 # ==========================================
 def render_ticket_html(aa_val, df_source):
     row = df_source[df_source['Α/Α'] == aa_val].iloc[0]
@@ -502,6 +499,7 @@ def show_bets_dialog(title_str, df_to_show, full_df):
     if not df_to_show.empty:
         disp = df_to_show.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
         event = st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row")
+        
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
@@ -551,6 +549,7 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
 @st.dialog("➕ Καταχώρηση Νέου Δελτίου", width="large")
 def new_bet_dialog():
     reset_id = st.session_state['form_reset_counter']
+    
     st.markdown("<br>", unsafe_allow_html=True)
     bet_type = st.radio("Τύπος Στοιχήματος", BET_TYPES, horizontal=True, key=f"bet_type_{reset_id}")
     num_legs = 2
@@ -648,6 +647,7 @@ def new_bet_dialog():
             
     st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>3. Αποδόσεις & Ποντάρισμα</h5>", unsafe_allow_html=True)
     c5, c6, c7, c8 = st.columns(4)
+    
     if bet_type == "Μονό":
         odds = c5.number_input("Απόδοση", min_value=1.01, step=0.01, value=round(global_avg_odds, 2), key=f"odds_single_{reset_id}")
         chosen_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, key=f"stake_preset_{reset_id}")
@@ -674,6 +674,7 @@ def new_bet_dialog():
         cash_out_val = st.number_input("Επιστροφή Cash Out (€)", min_value=0.0, step=0.01, format="%.2f", key=f"cashout_{reset_id}")
     
     st.markdown("<br>", unsafe_allow_html=True)
+    
     if st.button("💾 ΑΠΟΘΗΚΕΥΣΗ ΔΕΛΤΙΟΥ", type="primary", key=f"save_btn_{reset_id}", use_container_width=True):
         profit = 0.0
         stake = custom_stake if chosen_preset == "Χειροκίνητα..." else float(chosen_preset)
@@ -708,7 +709,11 @@ def new_bet_dialog():
             market_str = " | ".join(market_parts)
         
         try:
-           new_data = pd.DataFrame([{'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 'Status': status, 'Profit': profit, 'Legs_Data': legs_json}])
+           new_data = pd.DataFrame([{
+               'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 
+               'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 
+               'Status': status, 'Profit': profit, 'Legs_Data': legs_json
+           }])
            df_to_save = pd.concat([df.drop(columns=['Α/Α'], errors='ignore'), new_data], ignore_index=True)
            save_data(df_to_save)
            st.session_state['show_toast'] = True
@@ -924,7 +929,7 @@ if page == "📊 Dashboard & Στατιστικά":
         max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
         max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
 
-        # ΣΕΡΙ ΝΙΚΩΝ/ΗΤΤΩΝ
+        # --- ΥΠΟΛΟΓΙΣΜΟΣ ΣΕΡΙ (ΝΙΚΩΝ / ΗΤΤΩΝ) ---
         max_win_streak, max_lose_streak = 0, 0
         current_w, current_l = 0, 0
         win_streak_idx, lose_streak_idx = [], []
@@ -992,10 +997,11 @@ if page == "📊 Dashboard & Στατιστικά":
         if col_h.button(f"Μέγιστη Απόδοση\n{max_win_odds:.2f} 🏆", key="btn_max_odds", use_container_width=True): 
             show_bets_dialog(f"🏆 Δελτίο με Μέγιστη Κερδισμένη Απόδοση ({max_win_odds})", df[df['Α/Α'] == max_win_odds_aa], df)
         
-        # 🧠 FUN FACTS & INSIGHTS
+        # 🧠 FUN FACTS & INSIGHTS 🧠
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### 🧠 Fun Facts & Insights")
         
+        # 1. ΣΕΡΙ ΗΜΕΡΩΝ
         daily_profits = completed_bets.groupby('Date')['Profit'].sum().reset_index().sort_values('Date')
         max_pos_days, max_neg_days = 0, 0
         cur_pos, cur_neg = 0, 0
@@ -1019,25 +1025,28 @@ if page == "📊 Dashboard & Στατιστικά":
                 cur_pos, cur_neg = 0, 0
                 cur_pos_dates, cur_neg_dates = [], []
 
+        # 2. ΑΝΑΛΥΣΗ ΟΜΑΔΩΝ ΚΑΙ ΠΑΙΚΤΩΝ ΜΕ ΣΩΣΤΗ ΚΑΤΑΝΟΜΗ ΚΕΡΔΟΥΣ
         team_profits = {}
         player_profits = {}
         ignore_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα', 'να', 'σκοραρει', 'anytime', 'scorer', '1', 'x', '2', '1x', 'x2', '12', 'gg', 'ng', 'g/g', 'n/g'}
 
-        def extract_entities(ev_str, ma_str, profit):
-            ev_main = str(ev_str).split("(")[0].strip()
+        def process_entities(ev_main, ma_str, profit_to_add):
+            # Εξαγωγή Ομάδων (Διαχωρισμός στα ' - ' ή ' vs ')
+            ev_main = str(ev_main).split("(")[0].strip()
             found_teams = False
             for delim in [' - ', ' vs ']:
                 if delim in ev_main:
                     parts = ev_main.split(delim)
                     if len(parts) == 2:
                         t1, t2 = parts[0].strip(), parts[1].strip()
-                        if t1: team_profits[t1] = team_profits.get(t1, 0.0) + profit
-                        if t2: team_profits[t2] = team_profits.get(t2, 0.0) + profit
+                        if t1: team_profits[t1] = team_profits.get(t1, 0.0) + profit_to_add
+                        if t2: team_profits[t2] = team_profits.get(t2, 0.0) + profit_to_add
                         found_teams = True
                     break
             if not found_teams and ev_main and len(ev_main) > 2:
-                team_profits[ev_main] = team_profits.get(ev_main, 0.0) + profit
+                team_profits[ev_main] = team_profits.get(ev_main, 0.0) + profit_to_add
 
+            # Εξαγωγή Παικτών από την Αγορά
             if pd.notna(ma_str) and str(ma_str).strip() != "":
                 for m_part in str(ma_str).split('|'):
                     m_clean = re.sub(r'[^\w\s-]', '', m_part).strip()
@@ -1047,22 +1056,42 @@ if page == "📊 Dashboard & Στατιστικά":
                         if re.search(r'\d', w) or normalize_greek(w) in ignore_words: break
                         p_name.append(w)
                     final_p = " ".join(p_name).strip()
-                    if final_p and len(final_p) > 2 and final_p.lower() not in ["home", "away", "draw", "νικη", "ισοπαλια"]:
-                        player_profits[final_p] = player_profits.get(final_p, 0.0) + profit
+                    if final_p and len(final_p) > 2 and final_p.lower() not in ["home", "away", "draw", "νικη", "ισοπαλια", "yes", "no"]:
+                        player_profits[final_p] = player_profits.get(final_p, 0.0) + profit_to_add
 
         for idx, row in completed_bets.iterrows():
-            prof = float(row['Profit'])
-            if pd.isna(prof): continue
+            ticket_prof = float(row['Profit'])
+            ticket_status = row['Status']
+            stake = float(row['Stake'])
             
             if row['Type'] == "Μονό":
-                extract_entities(row['Event'], row['Market'], prof)
+                process_entities(row['Event'], row['Market'], ticket_prof)
             else:
                 legs_str = row['Legs_Data']
                 if pd.notna(legs_str) and legs_str.strip() != "":
                     try:
-                        for leg in json.loads(legs_str):
-                            extract_entities(leg.get('event', ''), leg.get('market', ''), prof)
-                    except: pass
+                        legs = json.loads(legs_str)
+                        # Βρίσκουμε πόσα σημεία έκαψαν το δελτίο
+                        lost_legs_count = sum(1 for l in legs if "Χαμένο" in l.get('status', ''))
+                        
+                        for leg in legs:
+                            leg_st = leg.get('status', '')
+                            # Υπολογισμός Κέρδους ανά Σημείο
+                            if ticket_status == "🟢 Κερδισμένο":
+                                leg_profit = ticket_prof # Αν κέρδισε το δελτίο, η ομάδα πιστώνεται το κέρδος
+                            elif ticket_status == "🔴 Χαμένο":
+                                if "Χαμένο" in leg_st:
+                                    leg_profit = -stake / lost_legs_count if lost_legs_count > 0 else -stake
+                                else:
+                                    leg_profit = 0.0 # Αν ο παίκτης βγήκε αλλά το δελτίο χάθηκε από άλλον, δεν τον τιμωρούμε!
+                            elif ticket_status == "🟡 Cash Out":
+                                leg_profit = ticket_prof
+                            else:
+                                leg_profit = 0.0
+                                
+                            process_entities(leg.get('event', row['Event']), leg.get('market', ''), leg_profit)
+                    except:
+                        pass
 
         best_team, best_team_prof = max(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
         worst_team, worst_team_prof = min(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
@@ -1164,11 +1193,11 @@ if page == "📊 Dashboard & Στατιστικά":
                     y=alt.Y('Cumulative_Profit:Q', title="Ταμείο (€)", axis=alt.Axis(gridColor="#1f2937"))
                 )
                 
-                # 💡 Χρησιμοποιούμε mark_area + mark_line με interpolate='monotone' για ΤΕΛΕΙΑ, λεια καμπύλη!
-                area = base.mark_area(interpolate='monotone', opacity=0.3).encode(
+                # 💡 Χρησιμοποιούμε mark_area + mark_line με interpolate='basis' για ΤΕΛΕΙΑ, στρογγυλεμένη καμπύλη!
+                area = base.mark_area(interpolate='basis', opacity=0.3).encode(
                     color=alt.condition(alt.datum.Cumulative_Profit >= 0, alt.value('#10b981'), alt.value('#ef4444'))
                 )
-                line = base.mark_line(interpolate='monotone', strokeWidth=4).encode(
+                line = base.mark_line(interpolate='basis', strokeWidth=4).encode(
                     color=alt.condition(alt.datum.Cumulative_Profit >= 0, alt.value('#4ade80'), alt.value('#ff4b4b'))
                 )
                 hover_points = base.mark_circle(size=300, color="transparent").encode(
@@ -1189,13 +1218,27 @@ if page == "📊 Dashboard & Στατιστικά":
                 monthly_group = monthly_df.groupby(['Month_Sort', 'MonthStr'])['Profit'].sum().reset_index()
                 monthly_group = monthly_group.sort_values('Month_Sort')
                 monthly_group['Color'] = monthly_group['Profit'].apply(lambda x: '🟢 Κέρδος' if x >= 0 else '🔴 Ζημιά')
-                bar_chart = alt.Chart(monthly_group).mark_bar(cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
-                    x=alt.X('MonthStr:N', sort=alt.EncodingSortField(field='Month_Sort', order='ascending'), title=None, axis=alt.Axis(labelAngle=0, labelColor="#e2e8f0")),
-                    y=alt.Y('Profit:Q', title="Καθαρό Κέρδος (€)", axis=alt.Axis(gridColor="#1f2937")),
-                    color=alt.Color('Color:N', scale=alt.Scale(domain=['🟢 Κέρδος', '🔴 Ζημιά'], range=['#4ade80', '#ff4b4b']), legend=None),
+                
+                # Πιο μοντέρνο Bar Chart
+                bar_base = alt.Chart(monthly_group).encode(
+                    x=alt.X('MonthStr:N', sort=alt.EncodingSortField(field='Month_Sort', order='ascending'), title=None, axis=alt.Axis(labelAngle=0, labelColor="#e2e8f0", grid=False)),
+                    y=alt.Y('Profit:Q', title="Καθαρό Κέρδος (€)", axis=alt.Axis(gridColor="#1f2937", labelColor="#a8dadc")),
+                )
+                bars = bar_base.mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8, size=40, opacity=0.9).encode(
+                    color=alt.Color('Color:N', scale=alt.Scale(domain=['🟢 Κέρδος', '🔴 Ζημιά'], range=['#10b981', '#ef4444']), legend=None),
                     tooltip=[alt.Tooltip('MonthStr:N', title='Μήνας'), alt.Tooltip('Profit:Q', title='Ταμείο Μήνα', format='.2f')]
-                ).properties(height=350)
-                st.altair_chart(bar_chart, use_container_width=True, theme="streamlit")
+                )
+                text = bar_base.mark_text(
+                    align='center',
+                    baseline='middle',
+                    dy=alt.expr("datum.Profit >= 0 ? -15 : 15"),
+                    fontSize=14,
+                    fontWeight=700
+                ).encode(
+                    text=alt.Text('Profit:Q', format='+.2f'),
+                    color=alt.condition(alt.datum.Profit >= 0, alt.value('#4ade80'), alt.value('#ff4b4b'))
+                )
+                st.altair_chart((bars + text).properties(height=350), use_container_width=True, theme="streamlit")
             else:
                 st.info("Δεν υπάρχουν δεδομένα.")
 
