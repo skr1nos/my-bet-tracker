@@ -169,42 +169,36 @@ div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="s
 div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button p {
     color: #10b981 !important; font-weight: 600 !important;
 }
-
 div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button {
     border: 1px solid #ef4444 !important; background-color: rgba(239, 68, 68, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button p {
     color: #ef4444 !important; font-weight: 600 !important;
 }
-
 div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button {
     border: 1px solid #f59e0b !important; background-color: rgba(245, 158, 11, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button p {
     color: #f59e0b !important; font-weight: 600 !important;
 }
-
 div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button {
     border: 1px solid #3b82f6 !important; background-color: rgba(59, 130, 246, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button p {
     color: #3b82f6 !important; font-weight: 600 !important;
 }
-
 div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button {
     border: 1px solid #fbbf24 !important; background-color: rgba(251, 191, 36, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button p {
     color: #fbbf24 !important; font-weight: 600 !important;
 }
-
 div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button {
     border: 1px solid #9ca3af !important; background-color: rgba(156, 163, 175, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button p {
     color: #9ca3af !important; font-weight: 600 !important;
 }
-
 div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button {
     border: 1px solid #c084fc !important; background-color: rgba(192, 132, 252, 0.05) !important;
 }
@@ -250,7 +244,6 @@ if 'page_sel' not in st.session_state: st.session_state['page_sel'] = "📊 Dash
 if 'auto_odds_multi' not in st.session_state: st.session_state['auto_odds_multi'] = 1.0
 if 'redirect_to' not in st.session_state: st.session_state['redirect_to'] = None
 
-# Ο ΣΩΣΤΟΣ ΤΡΟΠΟΣ ΑΝΑΚΑΤΕΥΘΥΝΣΗΣ ΣΤΟ STREAMLIT
 if st.session_state['redirect_to']:
     st.session_state['page_sel'] = st.session_state['redirect_to']
     st.session_state['redirect_to'] = None
@@ -966,10 +959,8 @@ if page == "📊 Dashboard & Στατιστικά":
         
         prog_df = prog_df.sort_values(by="DateTime", ascending=False)
 
-        # ΜΕΓΙΣΤΟ ΚΑΘΑΡΟ ΚΕΡΔΟΣ ΔΕΛΤΙΟΥ
         max_single_profit = winning_bets['Profit'].max() if not winning_bets.empty else 0.0
         max_profit_aa = winning_bets.loc[winning_bets['Profit'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
-
         max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
         max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
 
@@ -1002,9 +993,7 @@ if page == "📊 Dashboard & Στατιστικά":
         # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ ---
         st.markdown("### 🏆 Στατιστικά Ταμείου & Money Management")
         
-        # ΣΕΙΡΑ 1: ΒΑΣΙΚΑ ΟΙΚΟΝΟΜΙΚΑ
         col_a, col_b, col_c, col_d = st.columns(4)
-        
         p_delta_str = f"\n( 🟢 +{profit_delta:.2f} € )" if profit_delta and profit_delta > 0 else (f"\n( 🔴 {profit_delta:.2f} € )" if profit_delta else "")
         st.markdown('<div class="marker-positive"></div>' if profit_delta and profit_delta > 0 else ('<div class="marker-negative"></div>' if profit_delta else ''), unsafe_allow_html=True)
         if col_a.button(f"Συνολικό Κέρδος\n{total_profit:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
@@ -1024,9 +1013,7 @@ if page == "📊 Dashboard & Στατιστικά":
         if col_d.button(f"Συνολικό Ποντάρισμα\n{total_staked:.2f} €", key="btn_staked", use_container_width=True):
             show_bets_dialog("💰 Όλα τα Πονταρισμένα Δελτία", completed_bets, df)
 
-        # ΣΕΙΡΑ 2: RISK & PERFORMANCE METRICS
         col_e, col_f, col_g, col_h = st.columns(4)
-        
         st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
         if col_e.button(f"Σύνολο Στοιχημάτων\n{total_bets}", key="btn_all", use_container_width=True):
             show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets, df)
@@ -1049,9 +1036,7 @@ if page == "📊 Dashboard & Στατιστικά":
         if col_h.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
             show_progression_dialog("avg_odds", prog_df, df)
 
-        # ΣΕΙΡΑ 3: HIGHLIGHTS & ATH
         col_i, col_j, col_k, col_l = st.columns(4)
-        
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
         if col_i.button(f"Μέγιστο Σερί Νικών\n{max_win_streak} 🟢", key="btn_w_streak", use_container_width=True): 
             show_bets_dialog(f"🟢 Μέγιστο Σερί Νικών ({max_win_streak} δελτία)", df[df['Α/Α'].isin(win_streak_idx)], df)
@@ -1257,7 +1242,6 @@ if page == "📊 Dashboard & Στατιστικά":
                     x=alt.X('Bet_Count:Q', axis=alt.Axis(labels=False, title=None, ticks=False, grid=False)),
                     y=alt.Y('Cumulative_Profit:Q', title="Ταμείο (€)", axis=alt.Axis(gridColor="#1f2937"))
                 )
-                
                 area = base.mark_area(interpolate='basis', opacity=0.3).encode(
                     color=alt.condition(alt.datum.Cumulative_Profit >= 0, alt.value('#10b981'), alt.value('#ef4444'))
                 )
@@ -1267,7 +1251,6 @@ if page == "📊 Dashboard & Στατιστικά":
                 hover_points = base.mark_circle(size=300, color="transparent").encode(
                     tooltip=[alt.Tooltip('Ημ/νια:N', title='Ημερομηνία'), alt.Tooltip('Cumulative_Profit:Q', title='Κέρδος (€)', format='.2f')]
                 )
-                
                 chart = (area + line + hover_points).properties(height=350)
                 st.altair_chart(chart, use_container_width=True, theme="streamlit")
             else:
@@ -1292,11 +1275,7 @@ if page == "📊 Dashboard & Στατιστικά":
                     tooltip=[alt.Tooltip('MonthStr:N', title='Μήνας'), alt.Tooltip('Profit:Q', title='Ταμείο Μήνα', format='.2f')]
                 )
                 text = bar_base.mark_text(
-                    align='center',
-                    baseline='middle',
-                    dy=alt.expr("datum.Profit >= 0 ? -15 : 15"),
-                    fontSize=14,
-                    fontWeight=700
+                    align='center', baseline='middle', dy=alt.expr("datum.Profit >= 0 ? -15 : 15"), fontSize=14, fontWeight=700
                 ).encode(
                     text=alt.Text('Profit:Q', format='+.2f'),
                     color=alt.condition(alt.datum.Profit >= 0, alt.value('#4ade80'), alt.value('#ff4b4b'))
@@ -1306,16 +1285,46 @@ if page == "📊 Dashboard & Στατιστικά":
                 st.info("Δεν υπάρχουν δεδομένα.")
 
 elif page == "⚡ Ανοιχτά Δελτία (Εκκρεμή)":
-    st.header("⏳ Εκκρεμή Στοιχήματα")
-    st.info("💡 Άλλαξε την 'Κατάσταση' και πάτα Αποθήκευση για να τα διευθετήσεις.")
+    st.header("⏳ Κέντρο Διευθέτησης (Εκκρεμή Στοιχήματα)")
     
     pending_df = filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"].copy()
     if pending_df.empty:
-        st.success("Όλα τα δελτία σου είναι διευθετημένα! Δεν χρωστάς τίποτα.")
+        st.success("🎉 Όλα τα δελτία σου είναι διευθετημένα! Δεν χρωστάς τίποτα. Πάμε για το επόμενο ταμείο!")
     else:
+        pending_count = len(pending_df)
+        pending_stake = pending_df['Stake'].sum()
+        pending_potential_return = (pending_df['Stake'] * pending_df['Odds']).sum()
+        
+        st.markdown(f"""
+        <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 25px;">
+            <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">Ανοιχτα Δελτια</p>
+                <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: #ffffff;">{pending_count}</p>
+            </div>
+            <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">Συνολικο Ρισκο</p>
+                <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: #ffffff;">{pending_stake:.2f} €</p>
+            </div>
+            <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid #10b981; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">Πιθανη Επιστροφη</p>
+                <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: #10b981;">{pending_potential_return:.2f} €</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.info("💡 Άλλαξε την 'Κατάσταση' απευθείας στον παρακάτω πίνακα και πάτα Αποθήκευση για να τα διευθετήσεις μαζικά.")
+        
         edit_pending_df = pending_df.drop(columns=['Legs_Data'])[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
-        edited_pending = st.data_editor(edit_pending_df, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS)
-        if st.button("💾 Αποθήκευση Εκκρεμών", type="primary"):
+        edit_pending_df['Πιθανή Επιστροφή'] = edit_pending_df['Stake'] * edit_pending_df['Odds']
+        
+        local_col_config = GREEK_COLUMNS.copy()
+        local_col_config["Πιθανή Επιστροφή"] = st.column_config.NumberColumn("Πιθανή Επιστροφή", format="%.2f €", disabled=True)
+        
+        edited_pending = st.data_editor(edit_pending_df, use_container_width=True, hide_index=True, column_config=local_col_config)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("💾 ΟΡΙΣΤΙΚΟΠΟΙΗΣΗ ΔΕΛΤΙΩΝ", type="primary", use_container_width=True):
+            changes_made = False
             for idx, row in edited_pending.iterrows():
                 aa_val = row['Α/Α']
                 real_idx = df.index[df['Α/Α'] == aa_val].tolist()[0]
@@ -1327,12 +1336,17 @@ elif page == "⚡ Ανοιχτά Δελτία (Εκκρεμή)":
                     else: prof = row['Profit']
                     df.at[real_idx, 'Status'] = new_status
                     df.at[real_idx, 'Profit'] = prof
-            save_df = df.drop(columns=['Α/Α'], errors='ignore')
-            save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
-            save_data(save_df)
-            st.session_state['show_toast'] = True
-            st.session_state['toast_message'] = "Τα στοιχήματα διευθετήθηκαν!"
-            st.rerun()
+                    changes_made = True
+            
+            if changes_made:
+                save_df = df.drop(columns=['Α/Α'], errors='ignore')
+                save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
+                save_data(save_df)
+                st.session_state['show_toast'] = True
+                st.session_state['toast_message'] = "Τα στοιχήματα διευθετήθηκαν!"
+                st.rerun()
+            else:
+                st.toast("Δεν κάνατε καμία αλλαγή στην Κατάσταση των δελτίων.", icon="ℹ️")
 
 elif page == "🗓️ Μηνιαία Αναφορά":
     st.header("📋 Ιστορικό ανά Μήνα")
