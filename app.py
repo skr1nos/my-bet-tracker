@@ -11,7 +11,6 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -169,36 +168,42 @@ div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="s
 div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button p {
     color: #10b981 !important; font-weight: 600 !important;
 }
+
 div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button {
     border: 1px solid #ef4444 !important; background-color: rgba(239, 68, 68, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button p {
     color: #ef4444 !important; font-weight: 600 !important;
 }
+
 div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button {
     border: 1px solid #f59e0b !important; background-color: rgba(245, 158, 11, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button p {
     color: #f59e0b !important; font-weight: 600 !important;
 }
+
 div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button {
     border: 1px solid #3b82f6 !important; background-color: rgba(59, 130, 246, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button p {
     color: #3b82f6 !important; font-weight: 600 !important;
 }
+
 div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button {
     border: 1px solid #fbbf24 !important; background-color: rgba(251, 191, 36, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button p {
     color: #fbbf24 !important; font-weight: 600 !important;
 }
+
 div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button {
     border: 1px solid #9ca3af !important; background-color: rgba(156, 163, 175, 0.05) !important;
 }
 div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button p {
     color: #9ca3af !important; font-weight: 600 !important;
 }
+
 div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button {
     border: 1px solid #c084fc !important; background-color: rgba(192, 132, 252, 0.05) !important;
 }
@@ -224,6 +229,18 @@ div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElem
 }
 div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button p {
     color: white !important; font-size: 16px !important; font-weight: bold !important;
+}
+
+/* 🔹 TABS STYLING */
+button[data-baseweb="tab"] {
+    background-color: transparent !important;
+    color: #a8dadc !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 500 !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: #4db8ff !important;
+    border-bottom: 2px solid #4db8ff !important;
 }
 
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
@@ -504,8 +521,8 @@ def show_bets_dialog(title_str, df_to_show, full_df):
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
-            st.session_state['auto_open_ticket'] = int(sel_aa)
             st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
+            st.session_state['auto_open_ticket'] = int(sel_aa)
             st.rerun()
     else:
         st.info("Δεν βρέθηκαν δελτία.")
@@ -554,8 +571,8 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
     if event.selection.rows:
         sel_idx = event.selection.rows[0]
         sel_aa = disp_df.iloc[sel_idx]['Α/Α']
-        st.session_state['auto_open_ticket'] = int(sel_aa)
         st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
+        st.session_state['auto_open_ticket'] = int(sel_aa)
         st.rerun()
 
 @st.dialog("➕ Καταχώρηση Νέου Δελτίου", width="large")
@@ -1438,252 +1455,278 @@ elif page == "🗓️ Μηνιαία Αναφορά":
             st.markdown("<br>", unsafe_allow_html=True)
 
 elif page == "⚙️ Διαχείριση Ιστορικού":
-    st.header("✏️ Επεξεργασία & Διαγραφή")
-    st.markdown("### 📝 Πλήρης Επεξεργασία (Μορφή Φόρμας)")
-    st.info("💡 Επίλεξε ένα δελτίο. Θα ανοίξει η ίδια ακριβώς καρτέλα με την οποία το καταχώρησες, για να αλλάξεις εύκολα ό,τι θες!")
+    st.header("⚙️ Κέντρο Ελέγχου (Διαχείριση Ιστορικού)")
     
-    if not filtered_df.empty:
-        edit_opts = {}
-        for idx, row in filtered_df.sort_values(by="Α/Α", ascending=False).iterrows():
-            d_str = row['Date'].strftime('%d/%m/%Y') if pd.notnull(row['Date']) else ""
-            desc = f"Α/Α {row['Α/Α']} | {d_str} | {row['Type']} | {str(row['Event'])[:35]}"
-            edit_opts[desc] = row['Α/Α']
-            
-        selected_edit_desc = st.selectbox("Επίλεξε Δελτίο προς επεξεργασία:", list(edit_opts.keys()), key="full_edit_select")
-        if selected_edit_desc:
-            selected_aa = edit_opts[selected_edit_desc]
-            real_idx = df.index[df['Α/Α'] == selected_aa].tolist()[0]
-            row_data = df.loc[real_idx]
-            
-            e_type = row_data['Type']
-            e_date = row_data['Date']
-            e_time = row_data['Time']
-            if pd.isna(e_time): e_time = datetime.now().time()
-            e_sport = row_data['Sport']
-            e_event = row_data['Event']
-            e_market = row_data['Market']
-            e_odds = float(row_data['Odds'])
-            e_stake = float(row_data['Stake'])
-            e_status = row_data['Status']
-            e_profit = float(row_data['Profit'])
-            e_legs_data = row_data['Legs_Data']
-            
-            e_legs = []
-            if pd.notna(e_legs_data) and e_legs_data != '' and str(e_legs_data) != 'nan':
-                try: e_legs = json.loads(e_legs_data)
-                except: pass
-                
-            with st.container(border=True):
-                type_idx = BET_TYPES.index(e_type) if e_type in BET_TYPES else 0
-                edit_bet_type = st.radio("Τύπος Στοιχήματος", BET_TYPES, horizontal=True, index=type_idx, key=f"ed_type_{selected_aa}")
-                edit_num_legs = len(e_legs) if len(e_legs) >= 2 else 2
-                if edit_bet_type != "Μονό":
-                    edit_num_legs = st.number_input("Πόσα σημεία (ή αγώνες) έχει το δελτίο;", min_value=2, max_value=15, value=int(edit_num_legs), key=f"ed_legs_num_{selected_aa}")
-                    
-                st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
-                c1, c2, c3 = st.columns(3)
-                ed_d = c1.date_input("Ημερομηνία", e_date, format="DD/MM/YYYY", key=f"ed_date_{selected_aa}")
-                ed_t = c2.time_input("Ώρα", e_time, step=60, key=f"ed_time_{selected_aa}")
-                sport_idx = list(SPORT_ICONS.values()).index(e_sport) if e_sport in SPORT_ICONS.values() else list(SPORT_ICONS.values()).index("🏀 Μπάσκετ")
-                ed_sport = c3.selectbox("Άθλημα", list(SPORT_ICONS.values()), index=sport_idx, key=f"ed_sport_{selected_aa}")
-                
-                new_legs = []
-                final_ev_str, final_ma_str = "", ""
-                st.markdown("---")
-                
-                if edit_bet_type == "Μονό":
-                    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Αγώνας & Αγορά (Επεξεργασία)</h5>", unsafe_allow_html=True)
-                    c_ev, c_ma = st.columns(2)
-                    ed_ev_key = f"ed_ev_txt_{selected_aa}"
-                    final_ev_str = c_ev.text_input("Αγώνας:", value=e_event, key=ed_ev_key)
-                    render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
-                    ed_ma_key = f"ed_ma_txt_{selected_aa}"
-                    final_ma_str = c_ma.text_input("Αγορά:", value=e_market, key=ed_ma_key)
-                    render_suggestions(c_ma, ed_ma_key, final_ma_str, get_market_suggestions, (all_markets,))
-                        
-                elif edit_bet_type == "Bet Builder":
-                    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Κοινός Αγώνας & Σημεία</h5>", unsafe_allow_html=True)
-                    c_ev, _ = st.columns(2)
-                    bb_ev = e_legs[0]['event'] if e_legs and 'event' in e_legs[0] else e_event
-                    bb_ev_clean = bb_ev.split(" (")[0] if " (" in bb_ev else bb_ev
-                    ed_ev_key = f"ed_bb_ev_t_{selected_aa}"
-                    final_ev_str = c_ev.text_input("Αγώνας:", value=bb_ev_clean, key=ed_ev_key)
-                    render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    
-                    for i in range(int(edit_num_legs)):
-                        cc2, cc3, cc4 = st.columns([3,1,2]) 
-                        leg_ma = e_legs[i]['market'] if i < len(e_legs) else ""
-                        leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
-                        leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
-                        ed_lma_key = f"ed_bb_lma_t_{i}_{selected_aa}"
-                        l_ma_final = cc2.text_input(f"Σημείο {i+1}", value=leg_ma, key=ed_lma_key)
-                        render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
-                        l_od_final = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_bb_lod_{i}_{selected_aa}")
-                        st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
-                        l_st_final = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_bb_lst_{i}_{selected_aa}")
-                        new_legs.append({"event": final_ev_str, "market": l_ma_final, "odds": l_od_final, "status": l_st_final})
+    hist_count = len(filtered_df)
+    hist_staked = filtered_df['Stake'].sum() if not filtered_df.empty else 0.0
+    hist_profit = filtered_df['Profit'].sum() if not filtered_df.empty else 0.0
+    
+    st.markdown(f"""
+    <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 25px;">
+        <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid #4db8ff; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">Καταγεγραμμενα Δελτια</p>
+            <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: #ffffff;">{hist_count}</p>
+        </div>
+        <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid #8b5cf6; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">Συνολικος Τζιρος</p>
+            <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: #ffffff;">{hist_staked:.2f} €</p>
+        </div>
+        <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid {'#10b981' if hist_profit >= 0 else '#ef4444'}; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">Καθαρο Κερδος / Ζημια</p>
+            <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: {'#10b981' if hist_profit >= 0 else '#ef4444'};">{hist_profit:.2f} €</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-                elif edit_bet_type == "Παρολί με Bet Builders":
-                    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Αγώνες & Σημεία (Bet Builders)</h5>", unsafe_allow_html=True)
-                    temp_odds = 1.0
-                    for i in range(int(edit_num_legs)):
-                        leg_ev = e_legs[i]['event'] if i < len(e_legs) else ""
-                        leg_ma = e_legs[i]['market'].replace(' | ', '\n') if i < len(e_legs) else ""
-                        leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
-                        leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
-                        
-                        st.markdown(f"<div style='background-color: rgba(22, 38, 59, 0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #4db8ff;'>", unsafe_allow_html=True)
-                        c_ev, c_od, c_st = st.columns([4,2,2])
-                        ed_lev_key = f"ed_pbb_ev_{i}_{selected_aa}"
-                        l_ev_final = c_ev.text_input(f"Αγώνας {i+1}:", value=leg_ev, key=ed_lev_key)
-                        render_suggestions(c_ev, ed_lev_key, l_ev_final, get_event_suggestions, (all_events, all_teams))
-                        
-                        l_od_final = c_od.number_input(f"Απόδοση Αγώνα:", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
-                        st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
-                        l_st_final = c_st.selectbox(f"Κατάσταση:", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
-                        
-                        ed_lma_key = f"ed_pbb_ma_{i}_{selected_aa}"
-                        l_ma_final = st.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", value=leg_ma, height=80, key=ed_lma_key)
-                        st.markdown("</div>", unsafe_allow_html=True)
-                        
-                        clean_ma = l_ma_final.replace('\n', ' | ') if l_ma_final else ""
-                        new_legs.append({"event": l_ev_final, "market": clean_ma, "odds": l_od_final, "status": l_st_final})
-                        if l_st_final != "🔵 Ακυρωμένο": temp_odds *= l_od_final
-                        
-                    if 'auto_odds_multi' not in st.session_state or st.session_state['auto_odds_multi'] == 1.0:
-                        st.session_state['auto_odds_multi'] = temp_odds
+    tab1, tab2 = st.tabs(["📝 Επεξεργασία Μεμονωμένου Δελτίου", "⚡ Μαζική Επεξεργασία (Πίνακας)"])
 
-                else: 
-                    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Ανάλυση Σημείων</h5>", unsafe_allow_html=True)
-                    temp_odds = 1.0
-                    for i in range(int(edit_num_legs)):
-                        cc1, cc2, cc3, cc4 = st.columns([3,3,1,2]) 
-                        leg_ev = e_legs[i]['event'] if i < len(e_legs) else ""
-                        leg_ma = e_legs[i]['market'] if i < len(e_legs) else ""
-                        leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
-                        leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
-                        ed_lev_key = f"ed_lev_t_{i}_{selected_aa}"
-                        l_ev_final = cc1.text_input(f"Αγώνας {i+1}", value=leg_ev, key=ed_lev_key)
-                        render_suggestions(cc1, ed_lev_key, l_ev_final, get_event_suggestions, (all_events, all_teams))
-                        ed_lma_key = f"ed_lma_t_{i}_{selected_aa}"
-                        l_ma_final = cc2.text_input(f"Σημείο {i+1}", value=leg_ma, key=ed_lma_key)
-                        render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
-                        
-                        l_od_final = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
-                        st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
-                        l_st_final = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
-                        new_legs.append({"event": l_ev_final, "market": l_ma_final, "odds": l_od_final, "status": l_st_final})
-                        if l_st_final != "🔵 Ακυρωμένο": temp_odds *= l_od_final
-                        
-                    if 'auto_odds_multi' not in st.session_state or st.session_state['auto_odds_multi'] == 1.0:
-                        st.session_state['auto_odds_multi'] = temp_odds
-                        
-                st.markdown("---")
-                st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>3. Αποδόσεις & Ποντάρισμα</h5>", unsafe_allow_html=True)
-                c5, c6, c7, c8 = st.columns(4)
-                if edit_bet_type == "Μονό":
-                    ed_odds = c5.number_input("Απόδοση", min_value=1.01, step=0.01, value=e_odds, key=f"ed_odds_{selected_aa}")
-                    preset_idx = len(STAKE_PRESETS) - 1
-                    for idx_p, p_val in enumerate(STAKE_PRESETS):
-                        if isinstance(p_val, float) and abs(p_val - e_stake) < 0.001: preset_idx = idx_p; break
-                    ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
-                    ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
-                    status_idx = STATUS_LIST.index(e_status) if e_status in STATUS_LIST else 0
-                    ed_status = c8.selectbox("Κατάσταση (Συνολική)", STATUS_LIST, index=status_idx, key=f"ed_status_{selected_aa}")
-                elif edit_bet_type == "Bet Builder":
-                    ed_odds = c5.number_input("Συνολική Απόδοση", min_value=1.00, step=0.01, value=e_odds, key=f"ed_odds_{selected_aa}")
-                    preset_idx = len(STAKE_PRESETS) - 1
-                    for idx_p, p_val in enumerate(STAKE_PRESETS):
-                        if isinstance(p_val, float) and abs(p_val - e_stake) < 0.001: preset_idx = idx_p; break
-                    ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
-                    ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
-                    status_options = ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"]
-                    s_idx = 1 if e_status == "🟡 Cash Out" else 0
-                    status_sel = c8.selectbox("Κατάσταση (Συνολική)", status_options, index=s_idx, key=f"ed_status_{selected_aa}")
-                    if status_sel == "Αυτόματος Υπολογισμός ⚙️": ed_status = calc_overall_status(new_legs)
-                    else: ed_status = "🟡 Cash Out"
-                else:
-                    ed_odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=float(st.session_state.get('auto_odds_multi', 1.0)), key=f"ed_odds_{selected_aa}")
-                    preset_idx = len(STAKE_PRESETS) - 1
-                    for idx_p, p_val in enumerate(STAKE_PRESETS):
-                        if isinstance(p_val, float) and abs(p_val - e_stake) < 0.001: preset_idx = idx_p; break
-                    ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
-                    ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
-                    status_options = ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"]
-                    s_idx = 1 if e_status == "🟡 Cash Out" else 0
-                    status_sel = c8.selectbox("Κατάσταση (Συνολική)", status_options, index=s_idx, key=f"ed_status_{selected_aa}")
-                    if status_sel == "Αυτόματος Υπολογισμός ⚙️": ed_status = calc_overall_status(new_legs)
-                    else: ed_status = "🟡 Cash Out"
+    with tab1:
+        st.info("💡 Επίλεξε ένα δελτίο από τη λίστα. Θα ανοίξει η ίδια ακριβώς καρτέλα με την οποία το καταχώρησες, για να αλλάξεις εύκολα ό,τι θες!")
+        if not filtered_df.empty:
+            edit_opts = {}
+            for idx, row in filtered_df.sort_values(by="Α/Α", ascending=False).iterrows():
+                d_str = row['Date'].strftime('%d/%m/%Y') if pd.notnull(row['Date']) else ""
+                desc = f"Α/Α {row['Α/Α']} | {d_str} | {row['Type']} | {str(row['Event'])[:35]}"
+                edit_opts[desc] = row['Α/Α']
                 
-                ed_co_val = 0.0
-                if ed_status == "🟡 Cash Out":
-                    existing_co = e_stake + e_profit if e_status == "🟡 Cash Out" else 0.0
-                    ed_co_val = st.number_input("Επιστροφή Cash Out (€)", min_value=0.0, step=0.01, value=existing_co, format="%.2f", key=f"ed_co_{selected_aa}")
+            selected_edit_desc = st.selectbox("Επίλεξε Δελτίο προς επεξεργασία:", list(edit_opts.keys()), key="full_edit_select")
+            if selected_edit_desc:
+                selected_aa = edit_opts[selected_edit_desc]
+                real_idx = df.index[df['Α/Α'] == selected_aa].tolist()[0]
+                row_data = df.loc[real_idx]
                 
-                st.markdown("<br>", unsafe_allow_html=True)
-                delete_check = st.checkbox("🗑️ Οριστική διαγραφή αυτού του δελτίου", key=f"del_check_{selected_aa}")
-                if st.button("💾 ΑΠΟΘΗΚΕΥΣΗ ΑΛΛΑΓΩΝ", type="primary", key=f"ed_save_btn_{selected_aa}", use_container_width=True):
-                    if delete_check:
-                        df.drop(index=real_idx, inplace=True)
-                        save_df = df.drop(columns=['Α/Α'], errors='ignore')
-                        save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
-                        save_data(save_df)
-                        st.session_state['show_toast'] = True
-                        st.session_state['toast_message'] = "Το δελτίο διαγράφηκε!"
-                        st.rerun()
+                e_type = row_data['Type']
+                e_date = row_data['Date']
+                e_time = row_data['Time']
+                if pd.isna(e_time): e_time = datetime.now().time()
+                e_sport = row_data['Sport']
+                e_event = row_data['Event']
+                e_market = row_data['Market']
+                e_odds = float(row_data['Odds'])
+                e_stake = float(row_data['Stake'])
+                e_status = row_data['Status']
+                e_profit = float(row_data['Profit'])
+                e_legs_data = row_data['Legs_Data']
+                
+                e_legs = []
+                if pd.notna(e_legs_data) and e_legs_data != '' and str(e_legs_data) != 'nan':
+                    try: e_legs = json.loads(e_legs_data)
+                    except: pass
+                    
+                with st.container(border=True):
+                    type_idx = BET_TYPES.index(e_type) if e_type in BET_TYPES else 0
+                    edit_bet_type = st.radio("Τύπος Στοιχήματος", BET_TYPES, horizontal=True, index=type_idx, key=f"ed_type_{selected_aa}")
+                    edit_num_legs = len(e_legs) if len(e_legs) >= 2 else 2
+                    if edit_bet_type != "Μονό":
+                        edit_num_legs = st.number_input("Πόσα σημεία (ή αγώνες) έχει το δελτίο;", min_value=2, max_value=15, value=int(edit_num_legs), key=f"ed_legs_num_{selected_aa}")
+                        
+                    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
+                    c1, c2, c3 = st.columns(3)
+                    ed_d = c1.date_input("Ημερομηνία", e_date, format="DD/MM/YYYY", key=f"ed_date_{selected_aa}")
+                    ed_t = c2.time_input("Ώρα", e_time, step=60, key=f"ed_time_{selected_aa}")
+                    sport_idx = list(SPORT_ICONS.values()).index(e_sport) if e_sport in SPORT_ICONS.values() else list(SPORT_ICONS.values()).index("🏀 Μπάσκετ")
+                    ed_sport = c3.selectbox("Άθλημα", list(SPORT_ICONS.values()), index=sport_idx, key=f"ed_sport_{selected_aa}")
+                    
+                    new_legs = []
+                    final_ev_str, final_ma_str = "" , ""
+                    st.markdown("---")
+                    
+                    if edit_bet_type == "Μονό":
+                        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Αγώνας & Αγορά (Επεξεργασία)</h5>", unsafe_allow_html=True)
+                        c_ev, c_ma = st.columns(2)
+                        ed_ev_key = f"ed_ev_txt_{selected_aa}"
+                        final_ev_str = c_ev.text_input("Αγώνας:", value=e_event, key=ed_ev_key)
+                        render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
+                        ed_ma_key = f"ed_ma_txt_{selected_aa}"
+                        final_ma_str = c_ma.text_input("Αγορά:", value=e_market, key=ed_ma_key)
+                        render_suggestions(c_ma, ed_ma_key, final_ma_str, get_market_suggestions, (all_markets,))
+                            
+                    elif edit_bet_type == "Bet Builder":
+                        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Κοινός Αγώνας & Σημεία</h5>", unsafe_allow_html=True)
+                        c_ev, _ = st.columns(2)
+                        bb_ev = e_legs[0]['event'] if e_legs and 'event' in e_legs[0] else e_event
+                        bb_ev_clean = bb_ev.split(" (")[0] if " (" in bb_ev else bb_ev
+                        ed_ev_key = f"ed_bb_ev_t_{selected_aa}"
+                        final_ev_str = c_ev.text_input("Αγώνας:", value=bb_ev_clean, key=ed_ev_key)
+                        render_suggestions(c_ev, ed_ev_key, final_ev_str, get_event_suggestions, (all_events, all_teams))
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        
+                        for i in range(int(edit_num_legs)):
+                            cc2, cc3, cc4 = st.columns([3,1,2]) 
+                            leg_ma = e_legs[i]['market'] if i < len(e_legs) else ""
+                            leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
+                            leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
+                            ed_lma_key = f"ed_bb_lma_t_{i}_{selected_aa}"
+                            l_ma_final = cc2.text_input(f"Σημείο {i+1}", value=leg_ma, key=ed_lma_key)
+                            render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
+                            l_od_final = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_bb_lod_{i}_{selected_aa}")
+                            st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
+                            l_st_final = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_bb_lst_{i}_{selected_aa}")
+                            new_legs.append({"event": final_ev_str, "market": l_ma_final, "odds": l_od_final, "status": l_st_final})
+
+                    elif edit_bet_type == "Παρολί με Bet Builders":
+                        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Αγώνες & Σημεία (Bet Builders)</h5>", unsafe_allow_html=True)
+                        temp_odds = 1.0
+                        for i in range(int(edit_num_legs)):
+                            leg_ev = e_legs[i]['event'] if i < len(e_legs) else ""
+                            leg_ma = e_legs[i]['market'].replace(' | ', '\n') if i < len(e_legs) else ""
+                            leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
+                            leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
+                            
+                            st.markdown(f"<div style='background-color: rgba(22, 38, 59, 0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #4db8ff;'>", unsafe_allow_html=True)
+                            c_ev, c_od, c_st = st.columns([4,2,2])
+                            ed_lev_key = f"ed_pbb_ev_{i}_{selected_aa}"
+                            l_ev_final = c_ev.text_input(f"Αγώνας {i+1}:", value=leg_ev, key=ed_lev_key)
+                            render_suggestions(c_ev, ed_lev_key, l_ev_final, get_event_suggestions, (all_events, all_teams))
+                            
+                            l_od_final = c_od.number_input(f"Απόδοση Αγώνα:", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                            st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
+                            l_st_final = c_st.selectbox(f"Κατάσταση:", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                            
+                            ed_lma_key = f"ed_pbb_ma_{i}_{selected_aa}"
+                            l_ma_final = st.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", value=leg_ma, height=80, key=ed_lma_key)
+                            st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            clean_ma = l_ma_final.replace('\n', ' | ') if l_ma_final else ""
+                            new_legs.append({"event": l_ev_final, "market": clean_ma, "odds": l_od_final, "status": l_st_final})
+                            if l_st_final != "🔵 Ακυρωμένο": temp_odds *= l_od_final
+                            
+                        if 'auto_odds_multi' not in st.session_state or st.session_state['auto_odds_multi'] == 1.0:
+                            st.session_state['auto_odds_multi'] = temp_odds
+
+                    else: 
+                        st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>2. Ανάλυση Σημείων</h5>", unsafe_allow_html=True)
+                        temp_odds = 1.0
+                        for i in range(int(edit_num_legs)):
+                            cc1, cc2, cc3, cc4 = st.columns([3,3,1,2]) 
+                            leg_ev = e_legs[i]['event'] if i < len(e_legs) else ""
+                            leg_ma = e_legs[i]['market'] if i < len(e_legs) else ""
+                            leg_od = float(e_legs[i]['odds']) if i < len(e_legs) else 1.50
+                            leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
+                            ed_lev_key = f"ed_lev_t_{i}_{selected_aa}"
+                            l_ev_final = cc1.text_input(f"Αγώνας {i+1}", value=leg_ev, key=ed_lev_key)
+                            render_suggestions(cc1, ed_lev_key, l_ev_final, get_event_suggestions, (all_events, all_teams))
+                            ed_lma_key = f"ed_lma_t_{i}_{selected_aa}"
+                            l_ma_final = cc2.text_input(f"Σημείο {i+1}", value=leg_ma, key=ed_lma_key)
+                            render_suggestions(cc2, ed_lma_key, l_ma_final, get_market_suggestions, (all_markets,))
+                            
+                            l_od_final = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                            st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
+                            l_st_final = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                            new_legs.append({"event": l_ev_final, "market": l_ma_final, "odds": l_od_final, "status": l_st_final})
+                            if l_st_final != "🔵 Ακυρωμένο": temp_odds *= l_od_final
+                            
+                        if 'auto_odds_multi' not in st.session_state or st.session_state['auto_odds_multi'] == 1.0:
+                            st.session_state['auto_odds_multi'] = temp_odds
+                            
+                    st.markdown("---")
+                    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>3. Αποδόσεις & Ποντάρισμα</h5>", unsafe_allow_html=True)
+                    c5, c6, c7, c8 = st.columns(4)
+                    if edit_bet_type == "Μονό":
+                        ed_odds = c5.number_input("Απόδοση", min_value=1.01, step=0.01, value=e_odds, key=f"ed_odds_{selected_aa}")
+                        preset_idx = len(STAKE_PRESETS) - 1
+                        for idx_p, p_val in enumerate(STAKE_PRESETS):
+                            if isinstance(p_val, float) and abs(p_val - e_stake) < 0.001: preset_idx = idx_p; break
+                        ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
+                        ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
+                        status_idx = STATUS_LIST.index(e_status) if e_status in STATUS_LIST else 0
+                        ed_status = c8.selectbox("Κατάσταση (Συνολική)", STATUS_LIST, index=status_idx, key=f"ed_status_{selected_aa}")
+                    elif edit_bet_type == "Bet Builder":
+                        ed_odds = c5.number_input("Συνολική Απόδοση", min_value=1.00, step=0.01, value=e_odds, key=f"ed_odds_{selected_aa}")
+                        preset_idx = len(STAKE_PRESETS) - 1
+                        for idx_p, p_val in enumerate(STAKE_PRESETS):
+                            if isinstance(p_val, float) and abs(p_val - e_stake) < 0.001: preset_idx = idx_p; break
+                        ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
+                        ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
+                        status_options = ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"]
+                        s_idx = 1 if e_status == "🟡 Cash Out" else 0
+                        status_sel = c8.selectbox("Κατάσταση (Συνολική)", status_options, index=s_idx, key=f"ed_status_{selected_aa}")
+                        if status_sel == "Αυτόματος Υπολογισμός ⚙️": ed_status = calc_overall_status(new_legs)
+                        else: ed_status = "🟡 Cash Out"
                     else:
-                        profit = 0.0
-                        stake = ed_custom if ed_preset == "Χειροκίνητα..." else float(ed_preset)
-                        if ed_status == "🟢 Κερδισμένο": profit = stake * (ed_odds - 1)
-                        elif ed_status == "🔴 Χαμένο": profit = -stake
-                        elif ed_status == "🟡 Cash Out": profit = ed_co_val - stake
-                        elif ed_status == "🔵 Ακυρωμένο": profit = 0.0
-                        
-                        t_string = ed_t.strftime('%H:%M')
-                        legs_json = ""
-                        if edit_bet_type != "Μονό":
-                            legs_json = json.dumps(new_legs)
-                            if edit_bet_type == "Bet Builder":
-                                base_ev = new_legs[0]['event'] if new_legs and new_legs[0]['event'] else ""
-                                final_ev_str = f"{base_ev} ({len(new_legs)} επιλογές)" if base_ev else f"{len(new_legs)} επιλογές"
-                            elif edit_bet_type == "Παρολί με Bet Builders":
-                                events_list = [l['event'] for l in new_legs if l['event']]
-                                final_ev_str = " | ".join(events_list) if events_list else ""
-                            else:
-                                events_list = [l['event'] for l in new_legs if l['event']]
-                                final_ev_str = " | ".join(events_list) if events_list else ""
-                            market_parts = []
-                            for l in new_legs:
-                                emoji = "⚪"
-                                if l['status'] == "🟢 Κερδισμένο": emoji = "🟢"
-                                elif l['status'] == "🔴 Χαμένο": emoji = "🔴"
-                                elif l['status'] == "🔵 Ακυρωμένο": emoji = "🔵"
-                                market_parts.append(f"{emoji} {l['market']} ({float(l['odds']):.2f})")
-                            final_ma_str = " | ".join(market_parts)
-                        
-                        df.at[real_idx, 'Date'] = ed_d
-                        df.at[real_idx, 'Time'] = t_string
-                        df.at[real_idx, 'Type'] = edit_bet_type
-                        df.at[real_idx, 'Sport'] = ed_sport
-                        df.at[real_idx, 'Event'] = final_ev_str
-                        df.at[real_idx, 'Market'] = final_ma_str
-                        df.at[real_idx, 'Odds'] = ed_odds
-                        df.at[real_idx, 'Stake'] = stake
-                        df.at[real_idx, 'Status'] = ed_status
-                        df.at[real_idx, 'Profit'] = profit
-                        df.at[real_idx, 'Legs_Data'] = legs_json
-                        
-                        save_df = df.drop(columns=['Α/Α'], errors='ignore')
-                        save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
-                        save_data(save_df)
-                        st.session_state['show_toast'] = True
-                        st.session_state['toast_message'] = "Οι αλλαγές αποθηκεύτηκαν!"
-                        st.session_state['auto_odds_multi'] = 1.0
-                        st.rerun()
+                        ed_odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=float(st.session_state.get('auto_odds_multi', 1.0)), key=f"ed_odds_{selected_aa}")
+                        preset_idx = len(STAKE_PRESETS) - 1
+                        for idx_p, p_val in enumerate(STAKE_PRESETS):
+                            if isinstance(p_val, float) and abs(p_val - e_stake) < 0.001: preset_idx = idx_p; break
+                        ed_preset = c6.selectbox("Ποντάρισμα (€)", STAKE_PRESETS, index=preset_idx, key=f"ed_stake_p_{selected_aa}")
+                        ed_custom = c7.number_input("Ή γράψε δικό σου ποσό (€)", min_value=0.0, step=0.05, value=e_stake if preset_idx == len(STAKE_PRESETS)-1 else 0.0, format="%.2f", key=f"ed_stake_c_{selected_aa}")
+                        status_options = ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"]
+                        s_idx = 1 if e_status == "🟡 Cash Out" else 0
+                        status_sel = c8.selectbox("Κατάσταση (Συνολική)", status_options, index=s_idx, key=f"ed_status_{selected_aa}")
+                        if status_sel == "Αυτόματος Υπολογισμός ⚙️": ed_status = calc_overall_status(new_legs)
+                        else: ed_status = "🟡 Cash Out"
+                    
+                    ed_co_val = 0.0
+                    if ed_status == "🟡 Cash Out":
+                        existing_co = e_stake + e_profit if e_status == "🟡 Cash Out" else 0.0
+                        ed_co_val = st.number_input("Επιστροφή Cash Out (€)", min_value=0.0, step=0.01, value=existing_co, format="%.2f", key=f"ed_co_{selected_aa}")
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("<div style='background-color: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border-left: 4px solid #ef4444; margin-bottom: 15px;'>", unsafe_allow_html=True)
+                    delete_check = st.checkbox("⚠️ Οριστική διαγραφή αυτού του δελτίου", key=f"del_check_{selected_aa}")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    if st.button("💾 ΑΠΟΘΗΚΕΥΣΗ ΑΛΛΑΓΩΝ", type="primary", key=f"ed_save_btn_{selected_aa}", use_container_width=True):
+                        if delete_check:
+                            df.drop(index=real_idx, inplace=True)
+                            save_df = df.drop(columns=['Α/Α'], errors='ignore')
+                            save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
+                            save_data(save_df)
+                            st.session_state['show_toast'] = True
+                            st.session_state['toast_message'] = "Το δελτίο διαγράφηκε!"
+                            st.rerun()
+                        else:
+                            profit = 0.0
+                            stake = ed_custom if ed_preset == "Χειροκίνητα..." else float(ed_preset)
+                            if ed_status == "🟢 Κερδισμένο": profit = stake * (ed_odds - 1)
+                            elif ed_status == "🔴 Χαμένο": profit = -stake
+                            elif ed_status == "🟡 Cash Out": profit = ed_co_val - stake
+                            elif ed_status == "🔵 Ακυρωμένο": profit = 0.0
+                            
+                            t_string = ed_t.strftime('%H:%M')
+                            legs_json = ""
+                            if edit_bet_type != "Μονό":
+                                legs_json = json.dumps(new_legs)
+                                if edit_bet_type == "Bet Builder":
+                                    base_ev = new_legs[0]['event'] if new_legs and new_legs[0]['event'] else ""
+                                    final_ev_str = f"{base_ev} ({len(new_legs)} επιλογές)" if base_ev else f"{len(new_legs)} επιλογές"
+                                elif edit_bet_type == "Παρολί με Bet Builders":
+                                    events_list = [l['event'] for l in new_legs if l['event']]
+                                    final_ev_str = " | ".join(events_list) if events_list else ""
+                                else:
+                                    events_list = [l['event'] for l in new_legs if l['event']]
+                                    final_ev_str = " | ".join(events_list) if events_list else ""
+                                market_parts = []
+                                for l in new_legs:
+                                    emoji = "⚪"
+                                    if l['status'] == "🟢 Κερδισμένο": emoji = "🟢"
+                                    elif l['status'] == "🔴 Χαμένο": emoji = "🔴"
+                                    elif l['status'] == "🔵 Ακυρωμένο": emoji = "🔵"
+                                    market_parts.append(f"{emoji} {l['market']} ({float(l['odds']):.2f})")
+                                final_ma_str = " | ".join(market_parts)
+                            
+                            df.at[real_idx, 'Date'] = ed_d
+                            df.at[real_idx, 'Time'] = t_string
+                            df.at[real_idx, 'Type'] = edit_bet_type
+                            df.at[real_idx, 'Sport'] = ed_sport
+                            df.at[real_idx, 'Event'] = final_ev_str
+                            df.at[real_idx, 'Market'] = final_ma_str
+                            df.at[real_idx, 'Odds'] = ed_odds
+                            df.at[real_idx, 'Stake'] = stake
+                            df.at[real_idx, 'Status'] = ed_status
+                            df.at[real_idx, 'Profit'] = profit
+                            df.at[real_idx, 'Legs_Data'] = legs_json
+                            
+                            save_df = df.drop(columns=['Α/Α'], errors='ignore')
+                            save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
+                            save_data(save_df)
+                            st.session_state['show_toast'] = True
+                            st.session_state['toast_message'] = "Οι αλλαγές αποθηκεύτηκαν!"
+                            st.session_state['auto_odds_multi'] = 1.0
+                            st.rerun()
 
-    st.markdown("---")
-    with st.expander("⚡ Γρήγορη Επεξεργασία Πίνακα (Μαζικές αλλαγές)"):
+    with tab2:
+        st.info("💡 Αλλάξτε κατευθείαν τις τιμές στον πίνακα και πατήστε αποθήκευση.")
         edit_df = filtered_df.copy()
         if 'Legs_Data' in edit_df.columns:
             edit_df = edit_df.drop(columns=['Legs_Data']) 
