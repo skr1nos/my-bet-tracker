@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import json
 import altair as alt
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import locale
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -52,7 +52,6 @@ custom_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-/* Εφαρμογή γραμματοσειράς ΜΟΝΟ σε κείμενα */
 html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p {
     font-family: 'Poppins', sans-serif !important;
 }
@@ -229,18 +228,6 @@ div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElem
 }
 div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button p {
     color: white !important; font-size: 16px !important; font-weight: bold !important;
-}
-
-/* 🔹 TABS STYLING */
-button[data-baseweb="tab"] {
-    background-color: transparent !important;
-    color: #a8dadc !important;
-    font-family: 'Poppins', sans-serif !important;
-    font-weight: 500 !important;
-}
-button[data-baseweb="tab"][aria-selected="true"] {
-    color: #4db8ff !important;
-    border-bottom: 2px solid #4db8ff !important;
 }
 
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
@@ -536,9 +523,9 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
         
     if metric_type == "profit":
         st.markdown("<h3 style='color: #4db8ff; font-family: Poppins;'>💰 Εξέλιξη Συνολικού Ταμείου</h3>", unsafe_allow_html=True)
-        disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Stake', 'Odds', 'Profit', 'Cumulative_Profit']].copy()
-        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Stake': 'Ποντάρισμα', 'Odds': 'Απόδοση', 'Profit': 'Κέρδος/Ζημιά', 'Cumulative_Profit': 'Τρέχον Ταμείο'}, inplace=True)
-        cfg = {"Τρέχον Ταμείο": st.column_config.NumberColumn("Τρέχον Ταμείο (€)", format="%.2f €"), "Κέρδος/Ζημιά": st.column_config.NumberColumn("Κέρδος/Ζημιά", format="%.2f €"), "Ποντάρισμα": st.column_config.NumberColumn("Ποντάρισμα", format="%.2f €"), "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")}
+        disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Stake', 'Odds', 'Profit', 'Cumulative_Profit', 'Balance']].copy()
+        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Stake': 'Ποντάρισμα', 'Odds': 'Απόδοση', 'Profit': 'Κέρδος/Ζημιά', 'Cumulative_Profit': 'Συνολικό Κέρδος', 'Balance': 'Τρέχον Υπόλοιπο'}, inplace=True)
+        cfg = {"Συνολικό Κέρδος": st.column_config.NumberColumn("Συνολικό Κέρδος (€)", format="%.2f €"), "Τρέχον Υπόλοιπο": st.column_config.NumberColumn("Τρέχον Υπόλοιπο (€)", format="%.2f €"), "Κέρδος/Ζημιά": st.column_config.NumberColumn("Κέρδος/Ζημιά", format="%.2f €"), "Ποντάρισμα": st.column_config.NumberColumn("Ποντάρισμα", format="%.2f €"), "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")}
     elif metric_type == "roi":
         st.markdown("<h3 style='color: #4db8ff; font-family: Poppins;'>📉 Εξέλιξη Yield (ROI)</h3>", unsafe_allow_html=True)
         disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Stake', 'Profit', 'Cumulative_ROI']].copy()
@@ -558,11 +545,11 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
     elif metric_type == "drawdown":
         st.markdown("<h3 style='color: #4db8ff; font-family: Poppins;'>📉 Εξέλιξη Βύθισης Ταμείου (Drawdown)</h3>", unsafe_allow_html=True)
         disp_df = prog_dataframe[['Α/Α', 'Date', 'Event', 'Profit', 'Cumulative_Profit', 'Peak', 'Drawdown']].copy()
-        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Profit': 'Κέρδος/Ζημιά', 'Cumulative_Profit': 'Ταμείο', 'Peak': 'Κορυφή (Peak)', 'Drawdown': 'Βύθιση (DD)'}, inplace=True)
+        disp_df.rename(columns={'Date': 'Ημ/νια', 'Event': 'Αγώνας', 'Profit': 'Κέρδος/Ζημιά', 'Cumulative_Profit': 'Συνολικό Κέρδος', 'Peak': 'Κορυφή (Peak)', 'Drawdown': 'Βύθιση (DD)'}, inplace=True)
         cfg = {
             "Βύθιση (DD)": st.column_config.NumberColumn("Βύθιση (€)", format="%.2f €"),
             "Κορυφή (Peak)": st.column_config.NumberColumn("Κορυφή (€)", format="%.2f €"),
-            "Ταμείο": st.column_config.NumberColumn("Ταμείο (€)", format="%.2f €"),
+            "Συνολικό Κέρδος": st.column_config.NumberColumn("Συνολικό Κέρδος (€)", format="%.2f €"),
             "Κέρδος/Ζημιά": st.column_config.NumberColumn("Κέρδος/Ζημιά", format="%.2f €"),
             "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
         }
@@ -851,15 +838,31 @@ GREEK_COLUMNS = {
 }
 
 # ==========================================
-# 🗂️ SIDEBAR REVAMP
+# 🗂️ SIDEBAR REVAMP (ΜΕ ΓΡΗΓΟΡΑ ΦΙΛΤΡΑ ΚΑΙ ΚΑΒΑ)
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 page = st.sidebar.radio("", ["📊 Dashboard & Στατιστικά", "⚡ Ανοιχτά Δελτία (Εκκρεμή)", "🗓️ Μηνιαία Αναφορά", "⚙️ Διαχείριση Ιστορικού"], key="page_sel", label_visibility="collapsed")
 
+st.sidebar.markdown("<div class='sidebar-header'>🏦 ΚΕΦΑΛΑΙΟ (BANKROLL)</div>", unsafe_allow_html=True)
+starting_bankroll = st.sidebar.number_input("Αρχική Κάβα (€)", value=0.0, step=10.0, format="%.2f")
+
 st.sidebar.markdown("<div class='sidebar-header'>🛠️ ΕΞΥΠΝΑ ΦΙΛΤΡΑ</div>", unsafe_allow_html=True)
-min_d = df['Date'].min() if not df.empty else date.today()
-max_d = df['Date'].max() if not df.empty else date.today()
-date_filter = st.sidebar.date_input("📅 Χρονικό Διάστημα", value=(min_d, max_d), format="DD/MM/YYYY")
+
+quick_date = st.sidebar.radio("⏱️ Χρονικό Διάστημα", ["Όλα", "Σήμερα", "Τελευταίες 7 Ημέρες", "Αυτός ο Μήνας", "Χειροκίνητα..."])
+if quick_date == "Όλα":
+    min_d = df['Date'].min() if not df.empty else date.today()
+    max_d = df['Date'].max() if not df.empty else date.today()
+    date_filter = (min_d, max_d)
+elif quick_date == "Σήμερα":
+    date_filter = (date.today(), date.today())
+elif quick_date == "Τελευταίες 7 Ημέρες":
+    date_filter = (date.today() - timedelta(days=7), date.today())
+elif quick_date == "Αυτός ο Μήνας":
+    date_filter = (date.today().replace(day=1), date.today())
+else:
+    min_d = df['Date'].min() if not df.empty else date.today()
+    max_d = df['Date'].max() if not df.empty else date.today()
+    date_filter = st.sidebar.date_input("📅 Επιλογή Ημερομηνιών", value=(min_d, max_d), format="DD/MM/YYYY")
 
 search_event = st.sidebar.text_input("🔍 Λέξη-Κλειδί (Ομάδα/Αγώνας)")
 sports_list = ["Όλα"] + sorted(df['Sport'].dropna().astype(str).unique().tolist())
@@ -868,12 +871,14 @@ types_list = ["Όλοι οι Τύποι"] + sorted(df['Type'].dropna().astype(st
 selected_type = st.sidebar.selectbox("🎫 Τύπος Συστήματος", types_list)
 
 filtered_df = df.copy()
-if len(date_filter) == 2:
-    filtered_df = filtered_df[(filtered_df['Date'] >= date_filter[0]) & (filtered_df['Date'] <= date_filter[1])]
-elif len(date_filter) == 1:
-    filtered_df = filtered_df[filtered_df['Date'] >= date_filter[0]]
 
-# GLOBAL SEARCH
+if isinstance(date_filter, tuple) and len(date_filter) == 2:
+    filtered_df = filtered_df[(filtered_df['Date'] >= date_filter[0]) & (filtered_df['Date'] <= date_filter[1])]
+elif isinstance(date_filter, tuple) and len(date_filter) == 1:
+    filtered_df = filtered_df[filtered_df['Date'] >= date_filter[0]]
+else:
+    filtered_df = filtered_df[filtered_df['Date'] == date_filter]
+
 if search_event: 
     filtered_df = filtered_df[
         filtered_df['Event'].str.contains(search_event, case=False, na=False) | 
@@ -901,6 +906,7 @@ if page == "📊 Dashboard & Στατιστικά":
     else:
         completed_bets = filtered_df[filtered_df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο", "🟡 Cash Out", "🔵 Ακυρωμένο"])]
         total_profit = filtered_df['Profit'].sum()
+        current_balance = starting_bankroll + total_profit
         total_staked = completed_bets['Stake'].sum()
         yield_pct = (total_profit / total_staked * 100) if total_staked > 0 else 0
         wl_bets = completed_bets[completed_bets['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
@@ -926,8 +932,6 @@ if page == "📊 Dashboard & Στατιστικά":
             win_rate_delta = win_rate - prev_wr
 
         winning_bets = filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"]
-        
-        # --- ΧΡΟΝΟΛΟΓΙΚΗ ΕΞΕΛΙΞΗ ΓΙΑ DRAWDOWN ΚΑΙ PROGRESSION ---
         completed_bets['DateTime'] = pd.to_datetime(completed_bets['Date'].astype(str) + ' ' + completed_bets['Time'].astype(str))
         prog_df = completed_bets.sort_values(by="DateTime").copy()
         
@@ -935,9 +939,7 @@ if page == "📊 Dashboard & Στατιστικά":
         current_p, current_s, current_wl_count, current_wins = 0.0, 0.0, 0, 0
         cum_o_sum, cum_o_count = 0.0, 0
         
-        peaks = []
-        drawdowns = []
-        current_peak = 0.0
+        peaks, drawdowns, current_peak = [], [], 0.0
         
         for idx, row in prog_df.iterrows():
             current_p += row['Profit']
@@ -950,13 +952,11 @@ if page == "📊 Dashboard & Στατιστικά":
                 current_wl_count += 1
                 if status == "🟢 Κερδισμένο": current_wins += 1
             
-            if current_p > current_peak:
-                current_peak = current_p
-            dd = current_p - current_peak # <= 0
+            if current_p > current_peak: current_peak = current_p
+            dd = current_p - current_peak 
             
             peaks.append(current_peak)
             drawdowns.append(dd)
-            
             cum_profit.append(current_p)
             cum_stake.append(current_s)
             cum_roi.append((current_p / current_s * 100) if current_s > 0 else 0.0)
@@ -964,6 +964,7 @@ if page == "📊 Dashboard & Στατιστικά":
             cum_avg.append((cum_o_sum / cum_o_count) if cum_o_count > 0 else 0.0)
 
         prog_df['Cumulative_Profit'] = cum_profit
+        prog_df['Balance'] = [starting_bankroll + cp for cp in cum_profit]
         prog_df['Cumulative_Stake'] = cum_stake
         prog_df['Cumulative_ROI'] = cum_roi
         prog_df['Cumulative_WR'] = cum_wr
@@ -972,7 +973,7 @@ if page == "📊 Dashboard & Στατιστικά":
         prog_df['Drawdown'] = drawdowns
         
         max_drawdown = min(drawdowns) if drawdowns else 0.0
-        peak_bankroll = max(peaks) if peaks else 0.0
+        peak_bankroll = (starting_bankroll + max(peaks)) if peaks else starting_bankroll
         
         prog_df = prog_df.sort_values(by="DateTime", ascending=False)
 
@@ -991,13 +992,11 @@ if page == "📊 Dashboard & Στατιστικά":
             if status == "🟢 Κερδισμένο":
                 current_w += 1; curr_w_idx.append(row['Α/Α'])
                 current_l = 0; curr_l_idx = []
-                if current_w > max_win_streak: 
-                    max_win_streak = current_w; win_streak_idx = curr_w_idx.copy()
+                if current_w > max_win_streak: max_win_streak = current_w; win_streak_idx = curr_w_idx.copy()
             elif status == "🔴 Χαμένο":
                 current_l += 1; curr_l_idx.append(row['Α/Α'])
                 current_w = 0; curr_w_idx = []
-                if current_l > max_lose_streak: 
-                    max_lose_streak = current_l; lose_streak_idx = curr_l_idx.copy()
+                if current_l > max_lose_streak: max_lose_streak = current_l; lose_streak_idx = curr_l_idx.copy()
             else: 
                 current_w = 0; curr_w_idx = []; current_l = 0; curr_l_idx = []
 
@@ -1011,9 +1010,9 @@ if page == "📊 Dashboard & Στατιστικά":
         st.markdown("### 🏆 Στατιστικά Ταμείου & Money Management")
         
         col_a, col_b, col_c, col_d = st.columns(4)
-        p_delta_str = f"\n( 🟢 +{profit_delta:.2f} € )" if profit_delta and profit_delta > 0 else (f"\n( 🔴 {profit_delta:.2f} € )" if profit_delta else "")
-        st.markdown('<div class="marker-positive"></div>' if profit_delta and profit_delta > 0 else ('<div class="marker-negative"></div>' if profit_delta else ''), unsafe_allow_html=True)
-        if col_a.button(f"Συνολικό Κέρδος\n{total_profit:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
+        p_delta_str = f"\n( Κέρδος: 🟢 +{profit_delta:.2f} € )" if profit_delta and profit_delta > 0 else (f"\n( Ζημιά: 🔴 {profit_delta:.2f} € )" if profit_delta else "")
+        st.markdown('<div class="marker-positive"></div>' if current_balance >= starting_bankroll else '<div class="marker-negative"></div>', unsafe_allow_html=True)
+        if col_a.button(f"Τρέχον Υπόλοιπο\n{current_balance:.2f} €{p_delta_str}", key="btn_prof", use_container_width=True):
             show_progression_dialog("profit", prog_df, df)
 
         r_delta_str = f"\n( 🟢 +{roi_delta:.2f} % )" if roi_delta and roi_delta > 0 else (f"\n( 🔴 {roi_delta:.2f} % )" if roi_delta else "")
@@ -1067,206 +1066,81 @@ if page == "📊 Dashboard & Στατιστικά":
             show_bets_dialog(f"🏆 Δελτίο με Μέγιστη Κερδισμένη Απόδοση ({max_win_odds})", df[df['Α/Α'] == max_win_odds_aa], df)
 
         st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
-        if col_l.button(f"Κορυφή Ταμείου (ATH)\n+{peak_bankroll:.2f} € 🏔️", key="btn_ath", use_container_width=True):
+        if col_l.button(f"Κορυφή Ταμείου (ATH)\n{peak_bankroll:.2f} € 🏔️", key="btn_ath", use_container_width=True):
             show_progression_dialog("profit", prog_df, df)
 
-        # 🧠 FUN FACTS & INSIGHTS
+        # 🧠 ΑΝΑΤΟΜΙΑ ΣΤΟΙΧΗΜΑΤΩΝ (ADVANCED ANALYTICS)
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### 🧠 Fun Facts & Insights")
+        st.markdown("---")
+        st.markdown("### 🎯 Ανατομία Στοιχημάτων (Advanced Analytics)")
+        col_s, col_o = st.columns(2)
         
-        daily_profits = completed_bets.groupby('Date')['Profit'].sum().reset_index().sort_values('Date')
-        max_pos_days, max_neg_days = 0, 0
-        cur_pos, cur_neg = 0, 0
-        cur_pos_dates, cur_neg_dates = [], []
-        max_pos_dates, max_neg_dates = [], []
+        with col_s:
+            st.markdown("#### 🏀 Ανάλυση ανά Άθλημα")
+            sport_stats = []
+            for sport in completed_bets['Sport'].unique():
+                s_df = completed_bets[completed_bets['Sport'] == sport]
+                s_profit = s_df['Profit'].sum()
+                s_staked = s_df['Stake'].sum()
+                s_roi = (s_profit / s_staked * 100) if s_staked > 0 else 0
+                s_wl = s_df[s_df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
+                s_wr = (len(s_wl[s_wl['Profit'] > 0]) / len(s_wl) * 100) if len(s_wl) > 0 else 0
+                sport_stats.append({"Άθλημα": sport, "Δελτία": len(s_df), "Win Rate (%)": s_wr, "ROI (%)": s_roi, "Κέρδος (€)": s_profit})
+            sport_df = pd.DataFrame(sport_stats).sort_values(by="Κέρδος (€)", ascending=False)
+            cfg_sport = {
+                "Win Rate (%)": st.column_config.ProgressColumn("Win Rate", format="%.1f%%", min_value=0, max_value=100),
+                "ROI (%)": st.column_config.NumberColumn("ROI", format="%.1f%%"),
+                "Κέρδος (€)": st.column_config.NumberColumn("Κέρδος", format="%.2f €")
+            }
+            st.dataframe(sport_df, use_container_width=True, hide_index=True, column_config=cfg_sport)
 
-        for idx, row in daily_profits.iterrows():
-            p = row['Profit']
-            d = row['Date']
-            if p > 0:
-                cur_pos += 1; cur_pos_dates.append(d)
-                cur_neg = 0; cur_neg_dates = []
-                if cur_pos > max_pos_days: 
-                    max_pos_days = cur_pos; max_pos_dates = cur_pos_dates.copy()
-            elif p < 0:
-                cur_neg += 1; cur_neg_dates.append(d)
-                cur_pos = 0; cur_pos_dates = []
-                if cur_neg > max_neg_days: 
-                    max_neg_days = cur_neg; max_neg_dates = cur_neg_dates.copy()
+        with col_o:
+            st.markdown("#### ⚖️ Ανάλυση Αποδόσεων")
+            bins = [0.0, 1.49, 1.99, 2.99, 9999.0]
+            labels = ["< 1.50 (Safe)", "1.50 - 1.99 (Medium)", "2.00 - 2.99 (High)", "3.00+ (Bomb)"]
+            completed_bets['Odds_Bracket'] = pd.cut(completed_bets['Odds'], bins=bins, labels=labels)
+            odds_stats = []
+            for bracket in labels:
+                o_df = completed_bets[completed_bets['Odds_Bracket'] == bracket]
+                if o_df.empty: continue
+                o_profit = o_df['Profit'].sum()
+                o_wl = o_df[o_df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
+                o_wr = (len(o_wl[o_wl['Profit'] > 0]) / len(o_wl) * 100) if len(o_wl) > 0 else 0
+                odds_stats.append({"Εύρος Απόδοσης": bracket, "Δελτία": len(o_df), "Win Rate (%)": o_wr, "Κέρδος (€)": o_profit})
+            odds_df = pd.DataFrame(odds_stats)
+            if not odds_df.empty:
+                cfg_odds = {
+                    "Win Rate (%)": st.column_config.ProgressColumn("Win Rate", format="%.1f%%", min_value=0, max_value=100),
+                    "Κέρδος (€)": st.column_config.NumberColumn("Κέρδος", format="%.2f €")
+                }
+                st.dataframe(odds_df, use_container_width=True, hide_index=True, column_config=cfg_odds)
             else:
-                cur_pos, cur_neg = 0, 0
-                cur_pos_dates, cur_neg_dates = [], []
-
-        team_profits = {}
-        player_profits = {}
-        ignore_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα', 'να', 'σκοραρει', 'anytime', 'scorer', '1', 'x', '2', '1x', 'x2', '12', 'gg', 'ng', 'g/g', 'n/g'}
-
-        def process_entities(ev_main, ma_str, profit_to_add):
-            ev_main = str(ev_main).split("(")[0].strip()
-            found_teams = False
-            for delim in [' - ', ' vs ']:
-                if delim in ev_main:
-                    parts = ev_main.split(delim)
-                    if len(parts) == 2:
-                        t1, t2 = parts[0].strip(), parts[1].strip()
-                        if t1: team_profits[t1] = team_profits.get(t1, 0.0) + profit_to_add
-                        if t2: team_profits[t2] = team_profits.get(t2, 0.0) + profit_to_add
-                        found_teams = True
-                    break
-            if not found_teams and ev_main and len(ev_main) > 2:
-                team_profits[ev_main] = team_profits.get(ev_main, 0.0) + profit_to_add
-
-            if pd.notna(ma_str) and str(ma_str).strip() != "":
-                for m_part in str(ma_str).split('|'):
-                    m_clean = re.sub(r'[^\w\s-]', '', m_part).strip()
-                    words = m_clean.split()
-                    p_name = []
-                    for w in words:
-                        if re.search(r'\d', w) or normalize_greek(w) in ignore_words: break
-                        p_name.append(w)
-                    final_p = " ".join(p_name).strip()
-                    if final_p and len(final_p) > 2 and final_p.lower() not in ["home", "away", "draw", "νικη", "ισοπαλια", "yes", "no"]:
-                        player_profits[final_p] = player_profits.get(final_p, 0.0) + profit_to_add
-
-        for idx, row in completed_bets.iterrows():
-            ticket_prof = float(row['Profit'])
-            ticket_status = row['Status']
-            stake = float(row['Stake'])
-            
-            if row['Type'] == "Μονό":
-                process_entities(row['Event'], row['Market'], ticket_prof)
-            else:
-                legs_str = row['Legs_Data']
-                if pd.notna(legs_str) and legs_str.strip() != "":
-                    try:
-                        legs = json.loads(legs_str)
-                        lost_legs_count = sum(1 for l in legs if "Χαμένο" in l.get('status', ''))
-                        
-                        for leg in legs:
-                            leg_st = leg.get('status', '')
-                            if ticket_status == "🟢 Κερδισμένο":
-                                leg_profit = ticket_prof 
-                            elif ticket_status == "🔴 Χαμένο":
-                                if "Χαμένο" in leg_st:
-                                    leg_profit = -stake / lost_legs_count if lost_legs_count > 0 else -stake
-                                else:
-                                    leg_profit = 0.0 
-                            elif ticket_status == "🟡 Cash Out":
-                                leg_profit = ticket_prof
-                            else:
-                                leg_profit = 0.0
-                                
-                            process_entities(leg.get('event', row['Event']), leg.get('market', ''), leg_profit)
-                    except:
-                        pass
-
-        best_team, best_team_prof = max(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
-        worst_team, worst_team_prof = min(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
-        best_player, best_player_prof = max(player_profits.items(), key=lambda x: x[1]) if player_profits else ("-", 0.0)
-        worst_player, worst_player_prof = min(player_profits.items(), key=lambda x: x[1]) if player_profits else ("-", 0.0)
-
-        best_team_disp = best_team[:18] + ".." if len(best_team) > 18 else best_team
-        worst_team_disp = worst_team[:18] + ".." if len(worst_team) > 18 else worst_team
-        best_player_disp = best_player[:18] + ".." if len(best_player) > 18 else best_player
-        worst_player_disp = worst_player[:18] + ".." if len(worst_player) > 18 else worst_player
-
-        c_ff1, c_ff2, c_ff3, c_ff4 = st.columns(4)
-        
-        st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
-        if c_ff1.button(f"☀️ Σερί Θετικών Ημερών\n{max_pos_days} Μέρες", key="btn_ff_pos", use_container_width=True):
-            if max_pos_days > 0:
-                show_bets_dialog(f"☀️ Στοιχήματα ({max_pos_days} Κερδοφόρες Μέρες)", completed_bets[completed_bets['Date'].isin(max_pos_dates)], df)
-            else:
-                st.toast("Δεν υπάρχει σερί θετικών ημερών ακόμα!", icon="⚠️")
-                
-        st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
-        if c_ff2.button(f"⛈️ Σερί Αρνητικών Ημερών\n{max_neg_days} Μέρες", key="btn_ff_neg", use_container_width=True):
-            if max_neg_days > 0:
-                show_bets_dialog(f"⛈️ Στοιχήματα ({max_neg_days} Ζημιογόνες Μέρες)", completed_bets[completed_bets['Date'].isin(max_neg_dates)], df)
-            else:
-                st.toast("Δεν υπάρχει σερί αρνητικών ημερών ακόμα!", icon="⚠️")
-
-        st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
-        if c_ff3.button(f"🏆 Χρυσή Ομάδα\n{best_team_disp} (+{best_team_prof:.2f} €)" if best_team_prof > 0 else "🏆 Χρυσή Ομάδα\n-", key="btn_ff_best", use_container_width=True):
-            if best_team_prof > 0:
-                team_df = completed_bets[completed_bets['Event'].str.contains(best_team, na=False) | completed_bets['Legs_Data'].str.contains(best_team, na=False)]
-                show_bets_dialog(f"🏆 Ιστορικό: Αγώνες με {best_team}", team_df, df)
-            else:
-                st.toast("Δεν υπάρχει ακόμα κερδοφόρα ομάδα!", icon="⚠️")
-
-        st.markdown('<div class="marker-dark"></div>', unsafe_allow_html=True)
-        if c_ff4.button(f"🧊 Μαύρη Λίστα Ομάδων\n{worst_team_disp} ({worst_team_prof:.2f} €)" if worst_team_prof < 0 else "🧊 Μαύρη Λίστα\n-", key="btn_ff_worst", use_container_width=True):
-            if worst_team_prof < 0:
-                team_df = completed_bets[completed_bets['Event'].str.contains(worst_team, na=False) | completed_bets['Legs_Data'].str.contains(worst_team, na=False)]
-                show_bets_dialog(f"🧊 Ιστορικό: Αγώνες με {worst_team}", team_df, df)
-            else:
-                st.toast("Δεν υπάρχει ακόμα ζημιογόνα ομάδα!", icon="⚠️")
-                
-        c_ff5, c_ff6, c_ff7, c_ff8 = st.columns(4)
-        
-        st.markdown('<div class="marker-player1"></div>', unsafe_allow_html=True)
-        if c_ff5.button(f"🥇 MVP Παίκτης / Ειδικό\n{best_player_disp} (+{best_player_prof:.2f} €)" if best_player_prof > 0 else "🥇 MVP Παίκτης\n-", key="btn_ff_pbest", use_container_width=True):
-            if best_player_prof > 0:
-                p_df = completed_bets[completed_bets['Market'].str.contains(best_player, na=False) | completed_bets['Legs_Data'].str.contains(best_player, na=False)]
-                show_bets_dialog(f"🥇 Ιστορικό: Στοιχήματα σε {best_player}", p_df, df)
-            else:
-                st.toast("Δεν υπάρχει κερδοφόρος παίκτης!", icon="⚠️")
-                
-        st.markdown('<div class="marker-player2"></div>', unsafe_allow_html=True)
-        if c_ff6.button(f"📉 Χειρότερος Παίκτης\n{worst_player_disp} ({worst_player_prof:.2f} €)" if worst_player_prof < 0 else "📉 Χειρότερος Παίκτης\n-", key="btn_ff_pworst", use_container_width=True):
-            if worst_player_prof < 0:
-                p_df = completed_bets[completed_bets['Market'].str.contains(worst_player, na=False) | completed_bets['Legs_Data'].str.contains(worst_player, na=False)]
-                show_bets_dialog(f"📉 Ιστορικό: Στοιχήματα σε {worst_player}", p_df, df)
-            else:
-                st.toast("Δεν υπάρχει ζημιογόνος παίκτης!", icon="⚠️")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### 📊 Ανάλυση Αποτελεσμάτων")
-        c_w, c_l, c_c, c_v, c_p = st.columns(5)
-        
-        st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
-        if c_w.button(f"🟢 Κερδισμένα\n{count_won}", key="btn_won", use_container_width=True): 
-            show_bets_dialog("🟢 Όλα τα Κερδισμένα", filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"], df)
-        
-        st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
-        if c_l.button(f"🔴 Χαμένα\n{count_lost}", key="btn_lost", use_container_width=True): 
-            show_bets_dialog("🔴 Όλα τα Χαμένα", filtered_df[filtered_df['Status'] == "🔴 Χαμένο"], df)
-        
-        st.markdown('<div class="marker-warning"></div>', unsafe_allow_html=True)
-        if c_c.button(f"🟡 Cash Out\n{count_cashout}", key="btn_co", use_container_width=True): 
-            show_bets_dialog("🟡 Όλα τα Cash Out", filtered_df[filtered_df['Status'] == "🟡 Cash Out"], df)
-        
-        st.markdown('<div class="marker-info"></div>', unsafe_allow_html=True)
-        if c_v.button(f"🔵 Ακυρωμένα\n{count_void}", key="btn_void", use_container_width=True): 
-            show_bets_dialog("🔵 Όλα τα Ακυρωμένα", filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"], df)
-        
-        st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
-        if c_p.button(f"⚪ Εκκρεμή\n{count_pending}", key="btn_pending", use_container_width=True): 
-            show_bets_dialog("⚪ Όλα τα Εκκρεμή", filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"], df)
+                st.info("Δεν υπάρχουν δεδομένα αποδόσεων.")
 
         st.markdown("---")
         col_chart1, col_chart2 = st.columns(2)
         with col_chart1:
-            st.markdown("### 📉 Εξέλιξη Κέρδους")
+            st.markdown("### 📉 Εξέλιξη Ταμείου")
             if not completed_bets.empty:
                 df_line = prog_df.sort_values(by="DateTime").copy()
                 df_line['Ημ/νια'] = pd.to_datetime(df_line['Date']).dt.strftime('%d/%m/%Y')
                 df_line['Bet_Count'] = range(1, len(df_line) + 1)
-                zero_point = pd.DataFrame([{'Bet_Count': 0, 'Cumulative_Profit': 0.0, 'Ημ/νια': '-', 'Event': 'Αρχικό Κεφάλαιο (Μηδέν)', 'Profit': 0.0}])
+                zero_point = pd.DataFrame([{'Bet_Count': 0, 'Cumulative_Profit': 0.0, 'Balance': starting_bankroll, 'Ημ/νια': '-', 'Event': 'Αρχικό Κεφάλαιο', 'Profit': 0.0}])
                 df_line = pd.concat([zero_point, df_line], ignore_index=True)
                 
                 base = alt.Chart(df_line).encode(
                     x=alt.X('Bet_Count:Q', axis=alt.Axis(labels=False, title=None, ticks=False, grid=False)),
-                    y=alt.Y('Cumulative_Profit:Q', title="Ταμείο (€)", axis=alt.Axis(gridColor="#1f2937"))
+                    y=alt.Y('Balance:Q', title="Υπόλοιπο (€)", axis=alt.Axis(gridColor="#1f2937"))
                 )
+                
                 area = base.mark_area(interpolate='basis', opacity=0.3).encode(
-                    color=alt.condition(alt.datum.Cumulative_Profit >= 0, alt.value('#10b981'), alt.value('#ef4444'))
+                    color=alt.condition(alt.datum.Balance >= starting_bankroll, alt.value('#10b981'), alt.value('#ef4444'))
                 )
                 line = base.mark_line(interpolate='basis', strokeWidth=4).encode(
-                    color=alt.condition(alt.datum.Cumulative_Profit >= 0, alt.value('#4ade80'), alt.value('#ff4b4b'))
+                    color=alt.condition(alt.datum.Balance >= starting_bankroll, alt.value('#4ade80'), alt.value('#ff4b4b'))
                 )
                 hover_points = base.mark_circle(size=300, color="transparent").encode(
-                    tooltip=[alt.Tooltip('Ημ/νια:N', title='Ημερομηνία'), alt.Tooltip('Cumulative_Profit:Q', title='Κέρδος (€)', format='.2f')]
+                    tooltip=[alt.Tooltip('Ημ/νια:N', title='Ημερομηνία'), alt.Tooltip('Balance:Q', title='Υπόλοιπο (€)', format='.2f')]
                 )
                 chart = (area + line + hover_points).properties(height=350)
                 st.altair_chart(chart, use_container_width=True, theme="streamlit")
