@@ -1122,12 +1122,86 @@ if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=
 if page == "🏠 Hub (Μήνες)":
     if st.session_state.get('selected_month') is None:
         st.title("🏠 My Betting Hub")
-        st.markdown("Επίλεξε τον μήνα που θέλεις να αναλύσεις ή ξεκίνα έναν νέο κύκλο.")
         
         valid_dates = df['Date'].dropna()
         all_months_data = set(valid_dates.apply(lambda x: x.strftime('%Y-%m')))
         all_months_db = set(custom_db.get("bankrolls", {}).keys())
         all_months = sorted(list(all_months_data | all_months_db), reverse=True)
+        
+        # --- 1. TROPHY ROOM & HUB STATS ---
+        if not df.empty:
+            completed_all = df[df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο", "🟡 Cash Out", "🔵 Ακυρωμένο"])]
+            lt_profit = completed_all['Profit'].sum()
+            
+            lt_units = 0.0
+            for idx, r in completed_all.iterrows():
+                m_str = pd.to_datetime(r['Date']).strftime('%Y-%m')
+                m_b = custom_db.get("bankrolls", {}).get(m_str, 0.0)
+                u = m_b / 20.0 if m_b > 0 else 0.0
+                if u > 0: lt_units += r['Profit'] / u
+                
+            wl_all = completed_all[completed_all['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
+            lt_wr = (len(wl_all[wl_all['Profit'] > 0]) / len(wl_all) * 100) if len(wl_all) > 0 else 0.0
+            
+            c_lt_color = "#10b981" if lt_profit >= 0 else "#ef4444"
+            u_sgn = "+" if lt_units >= 0 else ""
+            
+            st.markdown(f"""
+            <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 25px;">
+                <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid {c_lt_color}; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                    <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">🌍 Lifetime Κερδος</p>
+                    <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: {c_lt_color};">{lt_profit:.2f} €</p>
+                </div>
+                <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid #fbbf24; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                    <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">📈 Total Units</p>
+                    <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: #fbbf24;">{u_sgn}{lt_units:.1f} U</p>
+                </div>
+                <div style="flex: 1; background-color: #16263b; padding: 20px; border-radius: 12px; border-left: 4px solid #4db8ff; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                    <p style="margin: 0; font-size: 13px; color: #a8dadc; text-transform: uppercase; letter-spacing: 1px;">🎯 Win Rate</p>
+                    <p style="margin: 5px 0 0 0; font-size: 26px; font-weight: 700; color: #ffffff;">{lt_wr:.1f} %</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            c_chart, c_live = st.columns([2, 1])
+            with c_chart:
+                st.markdown("##### 📊 Πορεία ανά Μήνα")
+                monthly_df = completed_all.dropna(subset=['Date']).copy()
+                if not monthly_df.empty:
+                    monthly_df['MonthStr'] = pd.to_datetime(monthly_df['Date']).apply(lambda x: f"{GREEK_MONTHS[x.month]} {str(x.year)[2:]}'")
+                    monthly_df['Month_Sort'] = pd.to_datetime(monthly_df['Date']).dt.strftime('%Y-%m')
+                    monthly_group = monthly_df.groupby(['Month_Sort', 'MonthStr'])['Profit'].sum().reset_index()
+                    monthly_group['Color'] = monthly_group['Profit'].apply(lambda x: '🟢 Κέρδος' if x >= 0 else '🔴 Ζημιά')
+                    
+                    bar_base = alt.Chart(monthly_group).encode(
+                        x=alt.X('MonthStr:N', sort=alt.EncodingSortField(field='Month_Sort', order='ascending'), title=None, axis=alt.Axis(labelAngle=0, labelColor="#e2e8f0", grid=False)),
+                        y=alt.Y('Profit:Q', title="Καθαρό Κέρδος (€)", axis=alt.Axis(gridColor="#1f2937", labelColor="#a8dadc")),
+                    )
+                    bars = bar_base.mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, size=30, opacity=0.9).encode(
+                        color=alt.Color('Color:N', scale=alt.Scale(domain=['🟢 Κέρδος', '🔴 Ζημιά'], range=['#10b981', '#ef4444']), legend=None),
+                        tooltip=[alt.Tooltip('MonthStr:N', title='Μήνας'), alt.Tooltip('Profit:Q', title='Ταμείο Μήνα', format='.2f')]
+                    )
+                    st.altair_chart((bars).properties(height=200), use_container_width=True, theme="streamlit")
+                else:
+                    st.info("Δεν υπάρχουν δεδομένα για γράφημα.")
+            
+            with c_live:
+                st.markdown("##### 🔥 Momentum & Live")
+                recent = df.sort_values(by=["Date", "Time"]).tail(8)
+                f_html = "".join([{"🟢 Κερδισμένο":"🟢", "🔴 Χαμένο":"🔴", "⚪ Εκκρεμές":"⚪", "🟡 Cash Out":"🟡", "🔵 Ακυρωμένο":"🔵"}.get(s, "⚪") for s in recent['Status']])
+                if f_html:
+                    st.markdown(f"<div style='background:#16263b; padding:10px; border-radius:8px; border:1px solid #1e3a5f; margin-bottom:15px;'><span style='color:#a8dadc; font-size:12px; text-transform:uppercase;'>ΦΟΡΜΑ: </span><span style='font-size:18px; letter-spacing:3px;'>{f_html}</span></div>", unsafe_allow_html=True)
+                
+                pend = df[df['Status'] == "⚪ Εκκρεμές"]
+                if not pend.empty:
+                    for i, r in pend.head(3).iterrows():
+                        st.markdown(f"<div style='background:rgba(59,130,246,0.1); border-left:3px solid #3b82f6; padding:8px 10px; margin-bottom:6px; border-radius:4px; font-size:13px;'>⏳ <b>{r['Event'][:20]}...</b> ({safe_float(r['Odds'], 1.00):.2f})</div>", unsafe_allow_html=True)
+                    if len(pend) > 3:
+                        st.markdown(f"<div style='font-size:12px; color:#718096;'>+{len(pend)-3} ακόμα εκκρεμή...</div>", unsafe_allow_html=True)
+                else:
+                    st.info("Κανένα ανοιχτό δελτίο.")
+                    
+        st.markdown("<hr>", unsafe_allow_html=True)
         
         last_known_balance = 0.0
         
@@ -1154,7 +1228,7 @@ if page == "🏠 Hub (Μήνες)":
         if st.button("➕ Έναρξη Νέου Μήνα", use_container_width=True):
             start_new_month_dialog(suggested_new_month, last_known_balance)
             
-        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         
         if not all_months:
             st.info("Δεν υπάρχει ακόμα ιστορικό.")
