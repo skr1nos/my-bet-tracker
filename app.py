@@ -167,18 +167,21 @@ SPORTS_HIERARCHY = {
     }
 }
 
+# ΕΝΣΩΜΑΤΩΣΗ ΤΩΝ CUSTOM ΔΕΔΟΜΕΝΩΝ ΑΠΟ ΤΟ JSON
 custom_db = load_custom_db()
 for c_sport, c_leagues in custom_db.get("hierarchy", {}).items():
     if c_sport not in SPORTS_HIERARCHY: SPORTS_HIERARCHY[c_sport] = {}
     for c_league, c_teams in c_leagues.items():
-        if c_league not in SPORTS_HIERARCHY[c_sport]: SPORTS_HIERARCHY[c_sport][c_league] = []
+        if c_league not in SPORTS_HIERARCHY[c_sport]:
+            SPORTS_HIERARCHY[c_sport][c_league] = []
         for team in c_teams:
-            if team not in SPORTS_HIERARCHY[c_sport][c_league]: SPORTS_HIERARCHY[c_sport][c_league].append(team)
+            if team not in SPORTS_HIERARCHY[c_sport][c_league]:
+                SPORTS_HIERARCHY[c_sport][c_league].append(team)
 
 MARKET_GENERAL = {
     "⚽ Ποδόσφαιρο": ["Τελικό Αποτέλεσμα (1X2)", "Over/Under Γκολ", "Goal/Goal ή No Goal", "Διπλή Ευκαιρία", "Ημίχρονο/Τελικό", "Κόρνερ Match", "Κάρτες Match"],
     "🏀 Μπάσκετ": ["Νικητής (Με Παράταση)", "Χάντικαπ (Spread)", "Over/Under Πόντων", "Ημίχρονο/Τελικό"],
-    "🎾 Τένις": ["Νικητής Αγώνα", "Over/Under Games", "Χάντικαπ Games", "Ακριβές Σκορ Σετ"]
+    "🎾 Τένις": ["Νικητής Αγώνα", "Over/Under Games", "Χάντικαπ Games", "Ακριβές Σκορ Σετ", "Over/Under Άσσοι", "Over/Under Διπλά Λάθη"]
 }
 
 MARKET_PLAYER = {
@@ -272,6 +275,31 @@ if 'last_opened_prog_bet' not in st.session_state: st.session_state['last_opened
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
     st.session_state['show_toast'] = False 
+
+# ==========================================
+# 📊 CALLBACK FUNCTIONS
+# ==========================================
+def update_auto_odds(reset_id, num_legs):
+    total_odds = 1.0
+    for i in range(int(num_legs)):
+        leg_odds_key = f"leg_od_{i}_{reset_id}"
+        leg_status_key = f"leg_st_{i}_{reset_id}"
+        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
+            val = safe_float(st.session_state[leg_odds_key], 1.00)
+            stat = st.session_state[leg_status_key]
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
+    st.session_state['auto_odds_multi'] = total_odds
+
+def update_auto_odds_edit(aa_val, num_legs):
+    total_odds = 1.0
+    for i in range(int(num_legs)):
+        leg_odds_key = f"ed_leg_od_{i}_{aa_val}"
+        leg_status_key = f"ed_leg_st_{i}_{aa_val}"
+        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
+            val = safe_float(st.session_state[leg_odds_key], 1.00)
+            stat = st.session_state[leg_status_key]
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
+    st.session_state['auto_odds_multi'] = total_odds
 
 # ==========================================
 # ☁️ ΣΥΝΔΕΣΗ ΜΕ GOOGLE SHEETS
@@ -902,7 +930,7 @@ def new_bet_dialog():
             if status_sel == "Αυτόματος Υπολογισμός ⚙️": status = calc_overall_status(legs)
             else: status = "🟡 Cash Out"
         else:
-            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=safe_float(st.session_state.get('auto_odds_multi', 1.0), 1.00), key=f"odds_multi_{reset_id}")
+            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=float(st.session_state.get('auto_odds_multi', 1.0)), key=f"odds_multi_{reset_id}")
             chosen_preset = c6.selectbox("Ποντάρισμα (Στρατηγική)", STAKE_PRESETS_DYNAMIC, key=f"stake_preset_{reset_id}")
             custom_stake = c7.number_input("Ποσό (€)", min_value=0.0, step=0.05, format="%.2f", key=f"custom_stake_{reset_id}")
             status_sel = c8.selectbox("Κατάσταση (Συνολική)", ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"], key=f"status_{reset_id}")
@@ -1363,33 +1391,6 @@ elif page == "🌍 All-Time Στατιστικά":
             }
             st.dataframe(sport_df, use_container_width=True, hide_index=True, column_config=cfg_sport)
         else: st.info("Δεν υπάρχουν ολοκληρωμένα δελτία για ανάλυση αθλημάτων.")
-        
-        st.markdown("---")
-        st.markdown("### 🗓️ Ταμείο ανά Μήνα (Lifetime)")
-        monthly_df = completed_bets.dropna(subset=['Date']).copy()
-        if not monthly_df.empty:
-            monthly_df['MonthStr'] = pd.to_datetime(monthly_df['Date']).apply(lambda x: f"{GREEK_MONTHS[x.month]} {x.year} ({x.strftime('%m/%Y')})")
-            monthly_df['Month_Sort'] = pd.to_datetime(monthly_df['Date']).dt.strftime('%Y-%m')
-            monthly_group = monthly_df.groupby(['Month_Sort', 'MonthStr'])['Profit'].sum().reset_index()
-            monthly_group = monthly_group.sort_values('Month_Sort')
-            monthly_group['Color'] = monthly_group['Profit'].apply(lambda x: '🟢 Κέρδος' if x >= 0 else '🔴 Ζημιά')
-            
-            bar_base = alt.Chart(monthly_group).encode(
-                x=alt.X('MonthStr:N', sort=alt.EncodingSortField(field='Month_Sort', order='ascending'), title=None, axis=alt.Axis(labelAngle=0, labelColor="#e2e8f0", grid=False)),
-                y=alt.Y('Profit:Q', title="Καθαρό Κέρδος (€)", axis=alt.Axis(gridColor="#1f2937", labelColor="#a8dadc")),
-            )
-            bars = bar_base.mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8, size=40, opacity=0.9).encode(
-                color=alt.Color('Color:N', scale=alt.Scale(domain=['🟢 Κέρδος', '🔴 Ζημιά'], range=['#10b981', '#ef4444']), legend=None),
-                tooltip=[alt.Tooltip('MonthStr:N', title='Μήνας'), alt.Tooltip('Profit:Q', title='Ταμείο Μήνα', format='.2f')]
-            )
-            text = bar_base.mark_text(
-                align='center', baseline='middle', dy=alt.expr("datum.Profit >= 0 ? -15 : 15"), fontSize=14, fontWeight=700
-            ).encode(
-                text=alt.Text('Profit:Q', format='+.2f'),
-                color=alt.condition(alt.datum.Profit >= 0, alt.value('#4ade80'), alt.value('#ff4b4b'))
-            )
-            st.altair_chart((bars + text).properties(height=350), use_container_width=True, theme="streamlit")
-        else: st.info("Δεν υπάρχουν δεδομένα.")
 
 
 elif page == "⚡ Ανοιχτά Δελτία":
