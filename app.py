@@ -11,7 +11,6 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-import pytz
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -37,12 +36,14 @@ def format_month(yyyymm):
         return yyyymm
 
 def get_current_greek_time():
-    """Επιστρέφει την ακριβή τρέχουσα ώρα Ελλάδος, αγνοώντας την ώρα του server."""
+    """Επιστρέφει την ακριβή τρέχουσα ώρα Ελλάδος με χρήση ενσωματωμένων εργαλείων Python."""
     try:
-        tz = pytz.timezone('Europe/Athens')
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('Europe/Athens')
         return datetime.now(tz).time()
-    except:
-        return datetime.now().time()
+    except Exception:
+        # Fallback ασφαλείας αν δεν υποστηρίζεται το zoneinfo (προσθέτει 3 ώρες στην παγκόσμια ώρα)
+        return (datetime.utcnow() + timedelta(hours=3)).time()
 
 EXPECTED_COLS = ['Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Status', 'Profit', 'Legs_Data']
 DISPLAY_ORDER = ['Α/Α', 'Status', 'Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Profit']
@@ -176,16 +177,13 @@ SPORTS_HIERARCHY = {
     }
 }
 
-# ΕΝΣΩΜΑΤΩΣΗ ΤΩΝ CUSTOM ΔΕΔΟΜΕΝΩΝ ΑΠΟ ΤΟ JSON
 custom_db = load_custom_db()
 for c_sport, c_leagues in custom_db.get("hierarchy", {}).items():
     if c_sport not in SPORTS_HIERARCHY: SPORTS_HIERARCHY[c_sport] = {}
     for c_league, c_teams in c_leagues.items():
-        if c_league not in SPORTS_HIERARCHY[c_sport]:
-            SPORTS_HIERARCHY[c_sport][c_league] = []
+        if c_league not in SPORTS_HIERARCHY[c_sport]: SPORTS_HIERARCHY[c_sport][c_league] = []
         for team in c_teams:
-            if team not in SPORTS_HIERARCHY[c_sport][c_league]:
-                SPORTS_HIERARCHY[c_sport][c_league].append(team)
+            if team not in SPORTS_HIERARCHY[c_sport][c_league]: SPORTS_HIERARCHY[c_sport][c_league].append(team)
 
 MARKET_GENERAL = {
     "⚽ Ποδόσφαιρο": ["Τελικό Αποτέλεσμα (1X2)", "Over/Under Γκολ", "Goal/Goal ή No Goal", "Διπλή Ευκαιρία", "Ημίχρονο/Τελικό", "Κόρνερ Match", "Κάρτες Match"],
@@ -886,8 +884,9 @@ def start_new_month_dialog(suggested_month, default_bankroll):
     st.write("Η εφαρμογή θα υπολογίζει αυτόματα τις **Μονάδες (Units)** σου διαιρώντας την κάβα σου διά 20.")
     
     try:
-        current_greece_time = get_current_greek_time()
-        today = datetime.combine(date.today(), current_greece_time).date()
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('Europe/Athens')
+        today = datetime.now(tz).date()
     except:
         today = date.today()
         
@@ -927,8 +926,20 @@ def new_bet_dialog():
     
     st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1, 2])
-    d = c1.date_input("Ημερομηνία", date.today(), format="DD/MM/YYYY", key=f"date_{reset_id}")
-    t = c2.time_input("Ώρα", get_current_greek_time(), step=60, key=f"time_{reset_id}")
+    
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo('Europe/Athens')
+        curr_datetime = datetime.now(tz)
+        curr_d = curr_datetime.date()
+        curr_t = curr_datetime.time()
+    except:
+        curr_d = date.today()
+        curr_t = (datetime.utcnow() + timedelta(hours=3)).time()
+        
+    d = c1.date_input("Ημερομηνία", curr_d, format="DD/MM/YYYY", key=f"date_{reset_id}")
+    t = c2.time_input("Ώρα", curr_t, step=60, key=f"time_{reset_id}")
+    
     basket_index = list(SPORT_ICONS.values()).index("🏀 Μπάσκετ")
     selected_sport_input = c3.selectbox("Άθλημα", list(SPORT_ICONS.values()), index=basket_index, key=f"sport_{reset_id}")
     
@@ -1120,7 +1131,14 @@ if page == "🏠 Hub (Μήνες)":
         all_months = sorted(list(all_months_data | all_months_db), reverse=True)
         
         last_known_balance = 0.0
-        suggested_new_month = date.today().strftime('%Y-%m')
+        
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo('Europe/Athens')
+            suggested_new_month = datetime.now(tz).strftime('%Y-%m')
+        except:
+            suggested_new_month = date.today().strftime('%Y-%m')
+            
         if all_months:
             latest_m = all_months[0]
             m_df = df[df['MonthGroup'] == latest_m]
@@ -1712,7 +1730,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                                 st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
                                 
                                 c_od, c_st = st.columns(2)
-                                l_od_final = c_od.number_input(f"Απόδοση:", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                                l_od_final = c_od.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
                                 st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
                                 l_st_final = c_st.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
                                 new_legs.append({"event": l_ev_final, "market": l_ma_final, "odds": l_od_final, "status": l_st_final})
