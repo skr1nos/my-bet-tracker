@@ -333,7 +333,8 @@ for idx, row in df.iterrows():
                 p1, p2 = ev_main.split(delim)
                 teams.extend([p1.strip(), p2.strip()])
                 break
-        if not teams and ev_main: teams.append(ev_main.strip())
+        if not teams and ev_main:
+            teams.append(ev_main.strip())
         
         players = []
         if pd.notna(ma_str) and str(ma_str).strip() != "":
@@ -500,14 +501,6 @@ def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=
             if final_player and stat_sel != "(Επιλογή)":
                 return f"{final_player} - {stat_sel} {line_val}".strip()
             return ""
-
-def calc_overall_status(legs_list):
-    if not legs_list: return "⚪ Εκκρεμές"
-    statuses = [l.get('status', "⚪ Εκκρεμές") for l in legs_list]
-    if "🔴 Χαμένο" in statuses: return "🔴 Χαμένο"
-    elif "⚪ Εκκρεμές" in statuses: return "⚪ Εκκρεμές"
-    elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
-    else: return "🔵 Ακυρωμένο"
 
 # ==========================================
 # 🧾 PREMIUM DIGITAL RECEIPT
@@ -863,7 +856,7 @@ def new_bet_dialog():
            new_data = pd.DataFrame([{
                'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 'Status': status, 'Profit': profit, 'Legs_Data': legs_json
            }])
-           df_to_save = pd.concat([df.drop(columns=['Α/Α'], errors='ignore'), new_data], ignore_index=True)
+           df_to_save = pd.concat([df.drop(columns=['Α/Α', 'MonthGroup'], errors='ignore'), new_data], ignore_index=True)
            save_data(df_to_save)
            st.session_state['show_toast'] = True
            st.session_state['toast_message'] = "Το δελτίο καταχωρήθηκε επιτυχώς!"
@@ -948,7 +941,6 @@ if page == "🏠 Hub (Μήνες)":
         # ----- ISOLATED MONTH VIEW -----
         sel_m = st.session_state['selected_month']
         
-        # Check an xreiazetai na anoiksei kapoio modal
         if st.session_state.get('auto_open_ticket') is not None:
             aa = st.session_state['auto_open_ticket']
             st.session_state['auto_open_ticket'] = None
@@ -1368,9 +1360,9 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
 
     with tab1:
         st.info("💡 Επίλεξε ένα δελτίο από τη λίστα. Θα ανοίξει η ίδια ακριβώς καρτέλα με την οποία το καταχώρησες, για να αλλάξεις εύκολα ό,τι θες!")
-        if not filtered_df.empty:
+        if not df.empty:
             edit_opts = {}
-            for idx, row in filtered_df.sort_values(by="Α/Α", ascending=False).iterrows():
+            for idx, row in df.sort_values(by="Α/Α", ascending=False).iterrows():
                 d_str = row['Date'].strftime('%d/%m/%Y') if pd.notnull(row['Date']) else ""
                 desc = f"Α/Α {row['Α/Α']} | {d_str} | {row['Type']} | {str(row['Event'])[:35]}"
                 edit_opts[desc] = row['Α/Α']
