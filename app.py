@@ -21,6 +21,7 @@ try:
 except:
     pass 
 
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -41,6 +42,21 @@ SPORT_ICONS = {
     "Άλλο": "🎯 Άλλο",
     "Διάφορα": "🌎 Διάφορα"
 }
+
+# ==========================================
+# 🧠 ΒΟΗΘΗΤΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ (NORMALIZATION)
+# ==========================================
+def normalize_greek(text):
+    if not text or pd.isna(text): return ""
+    text = str(text).lower()
+    charmap = {
+        'ά': 'α', 'έ': 'ε', 'ή': 'η', 'ί': 'ι', 'ό': 'ο', 'ύ': 'υ', 'ώ': 'ω',
+        'ϊ': 'ι', 'ϋ': 'υ', 'ΐ': 'ι', 'ΰ': 'υ', 'ς': 'σ'
+    }
+    for k, v in charmap.items():
+        text = text.replace(k, v)
+    text = ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+    return text.strip()
 
 # ==========================================
 # 🧠 ΔΙΑΧΕΙΡΙΣΗ CUSTOM ΒΑΣΗΣ (ΝΕΕΣ ΟΜΑΔΕΣ/ΠΑΙΚΤΕΣ)
@@ -65,18 +81,15 @@ def save_new_entities_to_db(sport):
     if "players" not in custom_db: custom_db["players"] = []
     
     for key, val in st.session_state.items():
-        if not isinstance(val, str) or not val.strip():
-            continue
+        if not isinstance(val, str) or not val.strip(): continue
         val = val.strip()
         
-        # Match new leagues
         if key.endswith("_new_lg"):
             if sport not in custom_db["hierarchy"]: custom_db["hierarchy"][sport] = {}
             if val not in custom_db["hierarchy"][sport]:
                 custom_db["hierarchy"][sport][val] = []
                 changed = True
         
-        # Match new teams
         if key.endswith("_t1_man") or key.endswith("_t2_man"):
             base_key = key.rsplit("_", 2)[0]
             lg_key = f"{base_key}_lg"
@@ -85,10 +98,8 @@ def save_new_entities_to_db(sport):
             lg_name = None
             if lg_key in st.session_state:
                 lg_val = st.session_state[lg_key]
-                if lg_val == "➕ Νέα Διοργάνωση..." and new_lg_key in st.session_state:
-                    lg_name = st.session_state[new_lg_key].strip()
-                elif lg_val and lg_val != "➕ Νέα Διοργάνωση...":
-                    lg_name = lg_val
+                if lg_val == "➕ Νέα Διοργάνωση..." and new_lg_key in st.session_state: lg_name = st.session_state[new_lg_key].strip()
+                elif lg_val and lg_val != "➕ Νέα Διοργάνωση...": lg_name = lg_val
                     
             if lg_name:
                 if sport not in custom_db["hierarchy"]: custom_db["hierarchy"][sport] = {}
@@ -99,7 +110,6 @@ def save_new_entities_to_db(sport):
                     custom_db["hierarchy"][sport][lg_name].append(val)
                     changed = True
 
-        # Match new players
         if key.endswith("_p_new"):
             if val not in custom_db["players"] and val not in all_players_global:
                 custom_db["players"].append(val)
@@ -318,7 +328,7 @@ df.insert(0, 'Α/Α', range(1, len(df) + 1))
 # ==========================================
 team_rosters = {}
 all_players_global = set()
-ignore_words_set = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα', 'να', 'σκοραρει', 'anytime', 'scorer', '1', 'x', '2', '1x', 'x2', '12', 'gg', 'ng', 'g/g', 'n/g'}
+ignore_words_set = {normalize_greek(w) for w in ['over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα', 'να', 'σκοραρει', 'anytime', 'scorer', '1', 'x', '2', '1x', 'x2', '12', 'gg', 'ng', 'g/g', 'n/g']}
 
 for idx, row in df.iterrows():
     def map_players(ev_str, ma_str):
@@ -329,8 +339,7 @@ for idx, row in df.iterrows():
                 p1, p2 = ev_main.split(delim)
                 teams.extend([p1.strip(), p2.strip()])
                 break
-        if not teams and ev_main:
-            teams.append(ev_main.strip())
+        if not teams and ev_main: teams.append(ev_main.strip())
         
         players = []
         if pd.notna(ma_str) and str(ma_str).strip() != "":
@@ -339,10 +348,10 @@ for idx, row in df.iterrows():
                 words = m_clean.split()
                 p_name = []
                 for w in words:
-                    if re.search(r'\d', w) or (w and ''.join(c for c in unicodedata.normalize('NFD', w) if unicodedata.category(c) != 'Mn').lower().strip() in ignore_words_set): break
+                    if re.search(r'\d', w) or (w and normalize_greek(w) in ignore_words_set): break
                     p_name.append(w)
                 final_p = " ".join(p_name).strip()
-                if final_p and len(final_p) > 2 and final_p.lower() not in ["home", "away", "draw", "νικη", "ισοπαλια", "yes", "no"]:
+                if final_p and len(final_p) > 2 and normalize_greek(final_p) not in ["home", "away", "draw", "νικη", "ισοπαλια", "yes", "no"]:
                     players.append(final_p)
         
         for t in teams:
@@ -351,14 +360,12 @@ for idx, row in df.iterrows():
                 team_rosters[t].add(p)
                 all_players_global.add(p)
 
-    if row['Type'] == "Μονό":
-        map_players(row['Event'], row['Market'])
+    if row['Type'] == "Μονό": map_players(row['Event'], row['Market'])
     else:
         legs_str = row['Legs_Data']
         if pd.notna(legs_str) and legs_str.strip():
             try:
-                for leg in json.loads(legs_str):
-                    map_players(leg.get('event', row['Event']), leg.get('market', ''))
+                for leg in json.loads(legs_str): map_players(leg.get('event', row['Event']), leg.get('market', ''))
             except: pass
 
 for p in custom_db.get("players", []): all_players_global.add(p)
@@ -397,11 +404,6 @@ GREEK_COLUMNS = {
     "Profit": st.column_config.NumberColumn("Κέρδος / Ζημιά", format="%.2f €")
 }
 
-def normalize_greek(text):
-    if not text: return ""
-    text = ''.join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn')
-    return text.lower().strip()
-
 def find_team_match(t, norm_teams_dict):
     m = difflib.get_close_matches(t, norm_teams_dict.keys(), n=1, cutoff=0.65)
     if m: return norm_teams_dict[m[0]]
@@ -412,7 +414,8 @@ def find_team_match(t, norm_teams_dict):
 def get_event_suggestions(user_text, all_events, all_teams):
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
-    if norm_user in [normalize_greek(e) for e in all_events]: return []
+    norm_events_dict = {normalize_greek(e): e for e in all_events}
+    if norm_user in norm_events_dict: return []
     suggestions = []
     for delim in [' - ', ' vs ', '-']:
         if delim in user_text:
@@ -427,41 +430,36 @@ def get_event_suggestions(user_text, all_events, all_teams):
                     suggestions.append(f"{final_t1} {delim.strip()} {final_t2}")
             break
     if not suggestions:
-        full_matches = difflib.get_close_matches(norm_user, [normalize_greek(e) for e in all_events], n=2, cutoff=0.75)
-        for fm in full_matches:
-            for ev in all_events:
-                if normalize_greek(ev) == fm:
-                    suggestions.append(ev); break
+        full_matches = difflib.get_close_matches(norm_user, list(norm_events_dict.keys()), n=2, cutoff=0.75)
+        for fm in full_matches: suggestions.append(norm_events_dict[fm])
     return list(dict.fromkeys(suggestions))[:3]
 
 def get_market_suggestions(user_text, all_markets):
     if len(user_text) < 3: return []
     norm_user = normalize_greek(user_text)
-    if norm_user in [normalize_greek(m) for m in all_markets]: return []
-    ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
+    norm_markets_dict = {normalize_greek(m): m for m in all_markets}
+    if norm_user in norm_markets_dict: return []
     def get_entity_prefix(text):
         words = []
         for w in text.split():
-            if re.search(r'\d', w) or w in ignore_break_words: break
+            if re.search(r'\d', w) or normalize_greek(w) in ignore_words_set: break
             words.append(w)
         return " ".join(words)
     user_prefix = get_entity_prefix(norm_user)
     scored_markets = []
-    for m in all_markets:
-        norm_m = normalize_greek(m)
+    for norm_m, orig_m in norm_markets_dict.items():
         if norm_user in norm_m:
-            scored_markets.append((m, 2.0))
+            scored_markets.append((orig_m, 2.0))
             continue
         m_prefix = get_entity_prefix(norm_m)
         if user_prefix and m_prefix:
             prefix_ratio = difflib.SequenceMatcher(None, user_prefix, m_prefix).ratio()
             if prefix_ratio < 0.65: continue 
             overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
-            scored_markets.append((m, overall_ratio + prefix_ratio))
+            scored_markets.append((orig_m, overall_ratio + prefix_ratio))
         else:
             overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
-            if overall_ratio > 0.75:
-                scored_markets.append((m, overall_ratio))
+            if overall_ratio > 0.75: scored_markets.append((orig_m, overall_ratio))
     scored_markets.sort(key=lambda x: x[1], reverse=True)
     return list(dict.fromkeys([x[0] for x in scored_markets]))[:3]
 
@@ -493,8 +491,7 @@ def render_event_input(sport, key_pref, mode, container=st):
         lg_col, t1_col, t2_col = container.columns([1.5, 2, 2])
         lg = lg_col.selectbox("🏆 Διοργάνωση", lg_opts, index=1, key=f"{key_pref}_lg")
         
-        if lg in ["(Επίλεξε Διοργάνωση)", ""]:
-            return ""
+        if lg in ["(Επίλεξε Διοργάνωση)", ""]: return ""
         elif lg == "➕ Νέα Διοργάνωση...":
             new_lg = lg_col.text_input("Όνομα Νέας Διοργάνωσης:", key=f"{key_pref}_new_lg")
             teams = []
@@ -551,7 +548,10 @@ def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=
             if not teams and ev_main: teams.append(ev_main.strip())
             
             for t in teams:
-                if t in team_rosters: relevant_players.extend(list(team_rosters[t]))
+                norm_t = normalize_greek(t)
+                for db_t in team_rosters:
+                    if normalize_greek(db_t) == norm_t:
+                        relevant_players.extend(list(team_rosters[db_t]))
             relevant_players = sorted(list(set(relevant_players)))
             all_others = sorted(list(all_players_global - set(relevant_players)))
             
@@ -670,17 +670,13 @@ def show_bets_dialog(title_str, df_to_show, full_df):
     st.markdown("<p style='color: #a8dadc; font-size: 14px; margin-bottom: 15px; font-family: Poppins;'>💡 Κάνε κλικ σε οποιαδήποτε γραμμή για να δεις την απόδειξη (Ανακατεύθυνση στο Ιστορικό).</p>", unsafe_allow_html=True)
     if not df_to_show.empty:
         disp = df_to_show.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
-        event = st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row", key="dialog_bets_df")
+        event = st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row")
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
-            if st.session_state.get('last_opened_dialog_bet') != sel_aa:
-                st.session_state['last_opened_dialog_bet'] = sel_aa
-                st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
-                st.session_state['auto_open_ticket'] = int(sel_aa)
-                st.rerun()
-        else:
-            st.session_state['last_opened_dialog_bet'] = None
+            st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
+            st.session_state['auto_open_ticket'] = int(sel_aa)
+            st.rerun()
     else:
         st.info("Δεν βρέθηκαν δελτία.")
 
@@ -724,17 +720,13 @@ def show_progression_dialog(metric_type, prog_dataframe, full_df):
             "Ημ/νια": st.column_config.DateColumn("Ημ/νια", format="DD/MM/YYYY")
         }
         
-    event = st.dataframe(disp_df, use_container_width=True, hide_index=True, column_config=cfg, on_select="rerun", selection_mode="single-row", key="dialog_prog_df")
+    event = st.dataframe(disp_df, use_container_width=True, hide_index=True, column_config=cfg, on_select="rerun", selection_mode="single-row")
     if event.selection.rows:
         sel_idx = event.selection.rows[0]
         sel_aa = disp_df.iloc[sel_idx]['Α/Α']
-        if st.session_state.get('last_opened_prog_bet') != sel_aa:
-            st.session_state['last_opened_prog_bet'] = sel_aa
-            st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
-            st.session_state['auto_open_ticket'] = int(sel_aa)
-            st.rerun()
-    else:
-        st.session_state['last_opened_prog_bet'] = None
+        st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
+        st.session_state['auto_open_ticket'] = int(sel_aa)
+        st.rerun()
 
 @st.dialog("➕ Καταχώρηση Νέου Δελτίου", width="large")
 def new_bet_dialog():
@@ -933,6 +925,7 @@ elif isinstance(date_filter, tuple) and len(date_filter) == 1:
 else:
     filtered_df = filtered_df[filtered_df['Date'] == date_filter]
 
+# GLOBAL SEARCH ACCENT INSENSITIVE
 if search_event: 
     norm_search = normalize_greek(search_event)
     filtered_df = filtered_df[
@@ -1059,6 +1052,7 @@ if page == "📊 Dashboard & Στατιστικά":
             else: 
                 current_w = 0; curr_w_idx = []; current_l = 0; curr_l_idx = []
 
+        # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ ---
         st.markdown("### 🏆 Στατιστικά Ταμείου & Money Management")
         col_a, col_b, col_c, col_d = st.columns(4)
         p_delta_str = f"\n( Κέρδος: 🟢 +{profit_delta:.2f} € )" if profit_delta and profit_delta > 0 else (f"\n( Ζημιά: 🔴 {profit_delta:.2f} € )" if profit_delta else "")
@@ -1120,7 +1114,7 @@ if page == "📊 Dashboard & Στατιστικά":
             else:
                 st.toast("Δεν υπάρχει κερδισμένο δελτίο!", icon="⚠️")
 
-        # 🧠 FUN FACTS & INSIGHTS
+        # 🧠 FUN FACTS & INSIGHTS (ΟΜΑΔΕΣ/ΠΑΙΚΤΕΣ) Με Normalization
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### 🧠 Fun Facts & Insights (Ειδικά Στατιστικά)")
         
@@ -1146,7 +1140,17 @@ if page == "📊 Dashboard & Στατιστικά":
 
         team_profits = {}
         player_profits = {}
+        display_names = {}
         
+        def add_to_dict(e_dict, orig_name, profit_val):
+            if not orig_name: return
+            norm = normalize_greek(orig_name)
+            if len(norm) < 2: return
+            if norm not in e_dict:
+                e_dict[norm] = 0.0
+                display_names[norm] = orig_name
+            e_dict[norm] += profit_val
+
         def process_entities(ev_main, ma_str, profit_to_add):
             ev_main = str(ev_main).split("(")[0].strip()
             found_teams = False
@@ -1154,12 +1158,12 @@ if page == "📊 Dashboard & Στατιστικά":
                 if delim in ev_main and len(ev_main.split(delim)) == 2:
                     parts = ev_main.split(delim)
                     t1, t2 = parts[0].strip(), parts[1].strip()
-                    if t1: team_profits[t1] = team_profits.get(t1, 0.0) + profit_to_add
-                    if t2: team_profits[t2] = team_profits.get(t2, 0.0) + profit_to_add
+                    add_to_dict(team_profits, t1, profit_to_add)
+                    add_to_dict(team_profits, t2, profit_to_add)
                     found_teams = True
                     break
             if not found_teams and ev_main and len(ev_main) > 2:
-                team_profits[ev_main] = team_profits.get(ev_main, 0.0) + profit_to_add
+                add_to_dict(team_profits, ev_main, profit_to_add)
 
             if pd.notna(ma_str) and str(ma_str).strip() != "":
                 for m_part in str(ma_str).split('|'):
@@ -1167,11 +1171,11 @@ if page == "📊 Dashboard & Στατιστικά":
                     words = m_clean.split()
                     p_name = []
                     for w in words:
-                        if re.search(r'\d', w) or (w and ''.join(c for c in unicodedata.normalize('NFD', w) if unicodedata.category(c) != 'Mn').lower().strip() in ignore_words_set): break
+                        if re.search(r'\d', w) or (w and normalize_greek(w) in ignore_words_set): break
                         p_name.append(w)
                     final_p = " ".join(p_name).strip()
-                    if final_p and len(final_p) > 2 and final_p.lower() not in ["home", "away", "draw", "νικη", "ισοπαλια", "yes", "no"]:
-                        player_profits[final_p] = player_profits.get(final_p, 0.0) + profit_to_add
+                    if final_p and len(final_p) > 2 and normalize_greek(final_p) not in ["home", "away", "draw", "νικη", "ισοπαλια", "yes", "no"]:
+                        add_to_dict(player_profits, final_p, profit_to_add)
 
         for idx, row in completed_bets.iterrows():
             ticket_prof = float(row['Profit'])
@@ -1195,15 +1199,20 @@ if page == "📊 Dashboard & Στατιστικά":
                             process_entities(leg.get('event', row['Event']), leg.get('market', ''), leg_profit)
                     except: pass
 
-        best_team, best_team_prof = max(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
-        worst_team, worst_team_prof = min(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
-        best_player, best_player_prof = max(player_profits.items(), key=lambda x: x[1]) if player_profits else ("-", 0.0)
-        worst_player, worst_player_prof = min(player_profits.items(), key=lambda x: x[1]) if player_profits else ("-", 0.0)
+        best_team_norm, best_team_prof = max(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
+        worst_team_norm, worst_team_prof = min(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
+        best_player_norm, best_player_prof = max(player_profits.items(), key=lambda x: x[1]) if player_profits else ("-", 0.0)
+        worst_player_norm, worst_player_prof = min(player_profits.items(), key=lambda x: x[1]) if player_profits else ("-", 0.0)
 
-        best_team_disp = best_team[:18] + ".." if len(best_team) > 18 else best_team
-        worst_team_disp = worst_team[:18] + ".." if len(worst_team) > 18 else worst_team
-        best_player_disp = best_player[:18] + ".." if len(best_player) > 18 else best_player
-        worst_player_disp = worst_player[:18] + ".." if len(worst_player) > 18 else worst_player
+        best_team_disp = display_names.get(best_team_norm, "-")
+        worst_team_disp = display_names.get(worst_team_norm, "-")
+        best_player_disp = display_names.get(best_player_norm, "-")
+        worst_player_disp = display_names.get(worst_player_norm, "-")
+
+        best_team_disp_s = best_team_disp[:18] + ".." if len(best_team_disp) > 18 else best_team_disp
+        worst_team_disp_s = worst_team_disp[:18] + ".." if len(worst_team_disp) > 18 else worst_team_disp
+        best_player_disp_s = best_player_disp[:18] + ".." if len(best_player_disp) > 18 else best_player_disp
+        worst_player_disp_s = worst_player_disp[:18] + ".." if len(worst_player_disp) > 18 else worst_player_disp
 
         c_ff1, c_ff2, c_ff3, c_ff4 = st.columns(4)
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
@@ -1217,32 +1226,32 @@ if page == "📊 Dashboard & Στατιστικά":
             else: st.toast("Δεν υπάρχει σερί αρνητικών ημερών ακόμα!", icon="⚠️")
 
         st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
-        if c_ff3.button(f"🏆 Χρυσή Ομάδα\n{best_team_disp} (+{best_team_prof:.2f} €)" if best_team_prof > 0 else "🏆 Χρυσή Ομάδα\n-", key="btn_ff_best", use_container_width=True):
+        if c_ff3.button(f"🏆 Χρυσή Ομάδα\n{best_team_disp_s} (+{best_team_prof:.2f} €)" if best_team_prof > 0 else "🏆 Χρυσή Ομάδα\n-", key="btn_ff_best", use_container_width=True):
             if best_team_prof > 0:
-                team_df = completed_bets[completed_bets['Event'].str.contains(best_team, na=False) | completed_bets['Legs_Data'].str.contains(best_team, na=False)]
-                show_bets_dialog(f"🏆 Ιστορικό: Αγώνες με {best_team}", team_df, df)
+                team_df = completed_bets[completed_bets['Event'].astype(str).apply(normalize_greek).str.contains(best_team_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(best_team_norm, na=False)]
+                show_bets_dialog(f"🏆 Ιστορικό: Αγώνες με {best_team_disp}", team_df, df)
             else: st.toast("Δεν υπάρχει ακόμα κερδοφόρα ομάδα!", icon="⚠️")
 
         st.markdown('<div class="marker-dark"></div>', unsafe_allow_html=True)
-        if c_ff4.button(f"🧊 Μαύρη Λίστα Ομάδων\n{worst_team_disp} ({worst_team_prof:.2f} €)" if worst_team_prof < 0 else "🧊 Μαύρη Λίστα\n-", key="btn_ff_worst", use_container_width=True):
+        if c_ff4.button(f"🧊 Μαύρη Λίστα Ομάδων\n{worst_team_disp_s} ({worst_team_prof:.2f} €)" if worst_team_prof < 0 else "🧊 Μαύρη Λίστα\n-", key="btn_ff_worst", use_container_width=True):
             if worst_team_prof < 0:
-                team_df = completed_bets[completed_bets['Event'].str.contains(worst_team, na=False) | completed_bets['Legs_Data'].str.contains(worst_team, na=False)]
-                show_bets_dialog(f"🧊 Ιστορικό: Αγώνες με {worst_team}", team_df, df)
+                team_df = completed_bets[completed_bets['Event'].astype(str).apply(normalize_greek).str.contains(worst_team_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(worst_team_norm, na=False)]
+                show_bets_dialog(f"🧊 Ιστορικό: Αγώνες με {worst_team_disp}", team_df, df)
             else: st.toast("Δεν υπάρχει ακόμα ζημιογόνα ομάδα!", icon="⚠️")
                 
         c_ff5, c_ff6, c_ff7, c_ff8 = st.columns(4)
         st.markdown('<div class="marker-player1"></div>', unsafe_allow_html=True)
-        if c_ff5.button(f"🥇 MVP Παίκτης / Ειδικό\n{best_player_disp} (+{best_player_prof:.2f} €)" if best_player_prof > 0 else "🥇 MVP Παίκτης\n-", key="btn_ff_pbest", use_container_width=True):
+        if c_ff5.button(f"🥇 MVP Παίκτης / Ειδικό\n{best_player_disp_s} (+{best_player_prof:.2f} €)" if best_player_prof > 0 else "🥇 MVP Παίκτης\n-", key="btn_ff_pbest", use_container_width=True):
             if best_player_prof > 0:
-                p_df = completed_bets[completed_bets['Market'].str.contains(best_player, na=False) | completed_bets['Legs_Data'].str.contains(best_player, na=False)]
-                show_bets_dialog(f"🥇 Ιστορικό: Στοιχήματα σε {best_player}", p_df, df)
+                p_df = completed_bets[completed_bets['Market'].astype(str).apply(normalize_greek).str.contains(best_player_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(best_player_norm, na=False)]
+                show_bets_dialog(f"🥇 Ιστορικό: Στοιχήματα σε {best_player_disp}", p_df, df)
             else: st.toast("Δεν υπάρχει κερδοφόρος παίκτης!", icon="⚠️")
                 
         st.markdown('<div class="marker-player2"></div>', unsafe_allow_html=True)
-        if c_ff6.button(f"📉 Χειρότερος Παίκτης\n{worst_player_disp} ({worst_player_prof:.2f} €)" if worst_player_prof < 0 else "📉 Χειρότερος Παίκτης\n-", key="btn_ff_pworst", use_container_width=True):
+        if c_ff6.button(f"📉 Χειρότερος Παίκτης\n{worst_player_disp_s} ({worst_player_prof:.2f} €)" if worst_player_prof < 0 else "📉 Χειρότερος Παίκτης\n-", key="btn_ff_pworst", use_container_width=True):
             if worst_player_prof < 0:
-                p_df = completed_bets[completed_bets['Market'].str.contains(worst_player, na=False) | completed_bets['Legs_Data'].str.contains(worst_player, na=False)]
-                show_bets_dialog(f"📉 Ιστορικό: Στοιχήματα σε {worst_player}", p_df, df)
+                p_df = completed_bets[completed_bets['Market'].astype(str).apply(normalize_greek).str.contains(worst_player_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(worst_player_norm, na=False)]
+                show_bets_dialog(f"📉 Ιστορικό: Στοιχήματα σε {worst_player_disp}", p_df, df)
             else: st.toast("Δεν υπάρχει ζημιογόνος παίκτης!", icon="⚠️")
 
         # 🧠 ΑΝΑΤΟΜΙΑ ΣΤΟΙΧΗΜΑΤΩΝ
@@ -1293,6 +1302,20 @@ if page == "📊 Dashboard & Στατιστικά":
                 }
                 st.dataframe(odds_df, use_container_width=True, hide_index=True, column_config=cfg_odds)
             else: st.info("Δεν υπάρχουν δεδομένα αποδόσεων.")
+
+        st.markdown("---")
+        st.markdown("### 📊 Ανάλυση Αποτελεσμάτων")
+        c_w, c_l, c_c, c_v, c_p = st.columns(5)
+        st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
+        if c_w.button(f"🟢 Κερδισμένα\n{count_won}", key="btn_won", use_container_width=True): show_bets_dialog("🟢 Όλα τα Κερδισμένα", filtered_df[filtered_df['Status'] == "🟢 Κερδισμένο"], df)
+        st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
+        if c_l.button(f"🔴 Χαμένα\n{count_lost}", key="btn_lost", use_container_width=True): show_bets_dialog("🔴 Όλα τα Χαμένα", filtered_df[filtered_df['Status'] == "🔴 Χαμένο"], df)
+        st.markdown('<div class="marker-warning"></div>', unsafe_allow_html=True)
+        if c_c.button(f"🟡 Cash Out\n{count_cashout}", key="btn_co", use_container_width=True): show_bets_dialog("🟡 Όλα τα Cash Out", filtered_df[filtered_df['Status'] == "🟡 Cash Out"], df)
+        st.markdown('<div class="marker-info"></div>', unsafe_allow_html=True)
+        if c_v.button(f"🔵 Ακυρωμένα\n{count_void}", key="btn_void", use_container_width=True): show_bets_dialog("🔵 Όλα τα Ακυρωμένα", filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"], df)
+        st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
+        if c_p.button(f"⚪ Εκκρεμή\n{count_pending}", key="btn_pending", use_container_width=True): show_bets_dialog("⚪ Όλα τα Εκκρεμή", filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"], df)
 
         st.markdown("---")
         col_chart1, col_chart2 = st.columns(2)
