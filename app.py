@@ -11,6 +11,7 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
+import pytz
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
@@ -34,6 +35,14 @@ def format_month(yyyymm):
         return f"{GREEK_MONTHS[int(m)]} {y} ({m}/{y})"
     except:
         return yyyymm
+
+def get_current_greek_time():
+    """Επιστρέφει την ακριβή τρέχουσα ώρα Ελλάδος, αγνοώντας την ώρα του server."""
+    try:
+        tz = pytz.timezone('Europe/Athens')
+        return datetime.now(tz).time()
+    except:
+        return datetime.now().time()
 
 EXPECTED_COLS = ['Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Status', 'Profit', 'Legs_Data']
 DISPLAY_ORDER = ['Α/Α', 'Status', 'Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Profit']
@@ -167,13 +176,16 @@ SPORTS_HIERARCHY = {
     }
 }
 
+# ΕΝΣΩΜΑΤΩΣΗ ΤΩΝ CUSTOM ΔΕΔΟΜΕΝΩΝ ΑΠΟ ΤΟ JSON
 custom_db = load_custom_db()
 for c_sport, c_leagues in custom_db.get("hierarchy", {}).items():
     if c_sport not in SPORTS_HIERARCHY: SPORTS_HIERARCHY[c_sport] = {}
     for c_league, c_teams in c_leagues.items():
-        if c_league not in SPORTS_HIERARCHY[c_sport]: SPORTS_HIERARCHY[c_sport][c_league] = []
+        if c_league not in SPORTS_HIERARCHY[c_sport]:
+            SPORTS_HIERARCHY[c_sport][c_league] = []
         for team in c_teams:
-            if team not in SPORTS_HIERARCHY[c_sport][c_league]: SPORTS_HIERARCHY[c_sport][c_league].append(team)
+            if team not in SPORTS_HIERARCHY[c_sport][c_league]:
+                SPORTS_HIERARCHY[c_sport][c_league].append(team)
 
 MARKET_GENERAL = {
     "⚽ Ποδόσφαιρο": ["Τελικό Αποτέλεσμα (1X2)", "Over/Under Γκολ", "Goal/Goal ή No Goal", "Διπλή Ευκαιρία", "Ημίχρονο/Τελικό", "Κόρνερ Match", "Κάρτες Match"],
@@ -873,7 +885,12 @@ def start_new_month_dialog(suggested_month, default_bankroll):
     st.markdown("### Ξεκίνα έναν νέο κύκλο στοιχηματισμού!")
     st.write("Η εφαρμογή θα υπολογίζει αυτόματα τις **Μονάδες (Units)** σου διαιρώντας την κάβα σου διά 20.")
     
-    today = date.today()
+    try:
+        current_greece_time = get_current_greek_time()
+        today = datetime.combine(date.today(), current_greece_time).date()
+    except:
+        today = date.today()
+        
     opts = []
     for y in [today.year - 1, today.year, today.year + 1]:
         for m in range(1, 13):
@@ -911,7 +928,7 @@ def new_bet_dialog():
     st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1, 2])
     d = c1.date_input("Ημερομηνία", date.today(), format="DD/MM/YYYY", key=f"date_{reset_id}")
-    t = c2.time_input("Ώρα", datetime.now().time(), step=60, key=f"time_{reset_id}")
+    t = c2.time_input("Ώρα", get_current_greek_time(), step=60, key=f"time_{reset_id}")
     basket_index = list(SPORT_ICONS.values()).index("🏀 Μπάσκετ")
     selected_sport_input = c3.selectbox("Άθλημα", list(SPORT_ICONS.values()), index=basket_index, key=f"sport_{reset_id}")
     
@@ -1012,7 +1029,7 @@ def new_bet_dialog():
             if status_sel == "Αυτόματος Υπολογισμός ⚙️": status = calc_overall_status(legs)
             else: status = "🟡 Cash Out"
         else:
-            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=float(st.session_state.get('auto_odds_multi', 1.0)), key=f"odds_multi_{reset_id}")
+            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=safe_float(st.session_state.get('auto_odds_multi', 1.0), 1.00), key=f"odds_multi_{reset_id}")
             chosen_preset = c6.selectbox("Ποντάρισμα (Στρατηγική)", STAKE_PRESETS_DYNAMIC, key=f"stake_preset_{reset_id}")
             custom_stake = c7.number_input("Ποσό (€)", min_value=0.0, step=0.05, format="%.2f", key=f"custom_stake_{reset_id}")
             status_sel = c8.selectbox("Κατάσταση (Συνολική)", ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"], key=f"status_{reset_id}")
@@ -1583,7 +1600,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                 e_type = row_data['Type']
                 e_date = row_data['Date']
                 e_time = row_data['Time']
-                if pd.isna(e_time): e_time = datetime.now().time()
+                if pd.isna(e_time): e_time = get_current_greek_time()
                 e_sport = row_data['Sport']
                 e_event = row_data['Event']
                 e_market = row_data['Market']
