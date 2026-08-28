@@ -11,18 +11,15 @@ from gspread_dataframe import set_with_dataframe, get_as_dataframe
 import re
 import unicodedata
 import difflib
-import streamlit.components.v1 as components
 
 # Απενεργοποίηση του ορίου γραμμών για τα γραφήματα 
 alt.data_transformers.disable_max_rows()
 
-# Ρύθμιση για Ελληνικά
 try:
     locale.setlocale(locale.LC_TIME, 'el_GR.UTF-8')
 except:
     pass 
 
-# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -31,7 +28,6 @@ GREEK_MONTHS = {
 
 EXPECTED_COLS = ['Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Status', 'Profit', 'Legs_Data']
 DISPLAY_ORDER = ['Α/Α', 'Status', 'Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Profit']
-
 STATUS_LIST = ["⚪ Εκκρεμές", "🟢 Κερδισμένο", "🔴 Χαμένο", "🔵 Ακυρωμένο", "🟡 Cash Out"]
 STAKE_PRESETS = [0.30, 0.15, "Χειροκίνητα..."]
 BET_TYPES = ["Μονό", "Παρολί", "Bet Builder", "Παρολί με Bet Builders"]
@@ -44,6 +40,33 @@ SPORT_ICONS = {
     "Διάφορα": "🌎 Διάφορα"
 }
 
+# ==========================================
+# 🧠 ΒΑΣΗ ΔΕΔΟΜΕΝΩΝ ΟΜΑΔΩΝ & ΔΙΟΡΓΑΝΩΣΕΩΝ
+# ==========================================
+SPORTS_HIERARCHY = {
+    "⚽ Ποδόσφαιρο": {
+        "🇬🇷 Super League": ["Ολυμπιακός", "Παναθηναϊκός", "ΑΕΚ", "ΠΑΟΚ", "Άρης", "ΟΦΗ", "Παναιτωλικός", "Αστέρας Τρίπολης", "Βόλος", "Ατρόμητος", "Λαμία", "Πανσερραϊκός", "Καλλιθέα", "Λεβαδειακός"],
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": ["Άρσεναλ", "Μάντσεστερ Σίτι", "Λίβερπουλ", "Τσέλσι", "Μάντσεστερ Γιουνάιτεντ", "Τότεναμ", "Νιούκαστλ", "Άστον Βίλα", "Έβερτον", "Μπράιτον", "Μπρέντφορντ", "Γουέστ Χαμ", "Φούλαμ", "Μπόρνμουθ", "Κρίσταλ Πάλας"],
+        "🇪🇸 La Liga": ["Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Ατλέτικο Μαδρίτης", "Τζιρόνα", "Μπιλμπάο", "Σοσιεδάδ", "Βιγιαρεάλ", "Βαλένθια", "Μπέτις", "Σεβίλλη", "Θέλτα", "Μαγιόρκα", "Οσασούνα"],
+        "🇮🇹 Serie A": ["Ίντερ", "Γιουβέντους", "Μίλαν", "Νάπολι", "Αταλάντα", "Ρόμα", "Λάτσιο", "Φιορεντίνα", "Τορίνο", "Μπολόνια"],
+        "🇪🇺 Champions League": ["Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Μπάγερν Μονάχου", "Λίβερπουλ", "Μάντσεστερ Σίτι", "Άρσεναλ", "Γιουβέντους", "Λεβερκούζεν", "Παρί Σεν Ζερμέν", "Ίντερ", "Μίλαν", "Ντόρτμουντ", "Σπόρτινγκ", "Μονακό", "Άστον Βίλα"],
+        "🇪🇺 Europa / Conference": ["Ολυμπιακός", "ΠΑΟΚ", "Παναθηναϊκός", "Μάντσεστερ Γιουνάιτεντ", "Τότεναμ", "Άγιαξ", "Λάτσιο", "Ρόμα", "Μπιλμπάο", "Λυών", "Σοσιεδάδ", "Άιντραχτ", "Γαλατασαράι", "Φενέρμπαχτσε"],
+        "Διεθνή (Εθνικές)": ["Ελλάδα", "Αγγλία", "Ισπανία", "Γαλλία", "Γερμανία", "Πορτογαλία", "Ολλανδία", "Ιταλία", "Αργεντινή", "Βραζιλία", "Βέλγιο"],
+        "Άλλη Διοργάνωση...": []
+    },
+    "🏀 Μπάσκετ": {
+        "🇪🇺 Euroleague": ["Ολυμπιακός", "Παναθηναϊκός", "Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Μονακό", "Φενέρμπαχτσε", "Εφές", "Μπάγερν", "Ζαλγκίρις", "Ερυθρός Αστέρας", "Παρτιζάν", "Αρμάνι Μιλάνο", "Βίρτους Μπολόνια", "Μακάμπι", "Βιλερμπάν", "Μπασκόνια", "Άλμπα Βερολίνου", "Παρί"],
+        "🇬🇷 Basket League": ["Ολυμπιακός", "Παναθηναϊκός", "Περιστέρι", "Προμηθέας", "ΑΕΚ", "Άρης", "ΠΑΟΚ", "Κολοσσός", "Μαρούσι", "Καρδίτσα", "Λαύριο", "Πανιώνιος"],
+        "🇺🇸 NBA": ["Μπόστον Σέλτικς", "Νιου Γιορκ Νικς", "Μιλγουόκι Μπακς", "Φιλαδέλφεια Σίξερς", "Μαϊάμι Χιτ", "Κλίβελαντ Καβαλίερς", "Ντένβερ Νάγκετς", "Λος Άντζελες Λέικερς", "Γκόλντεν Στέιτ Γουόριορς", "Φοίνιξ Σανς", "Ντάλας Μάβερικς", "Μινεσότα Τίμπεργουλβς", "Οκλαχόμα Σίτι Θάντερ", "Μέμφις Γκρίζλις"],
+        "Άλλη Διοργάνωση...": []
+    },
+    "🎾 Τένις": {
+        "Άνδρες (ATP)": ["Sinner", "Alcaraz", "Djokovic", "Zverev", "Medvedev", "Tsitsipas", "Rublev", "Ruud", "Dimitrov", "De Minaur", "Fritz", "Tiafoe", "Rune", "Shelton"],
+        "Γυναίκες (WTA)": ["Swiatek", "Sabalenka", "Gauff", "Rybakina", "Pegula", "Zheng", "Sakkari", "Jabeur", "Ostapenko", "Collins", "Navarro", "Paolini"],
+        "Άλλη Διοργάνωση...": []
+    }
+}
+
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
@@ -52,204 +75,51 @@ st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 custom_css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-
-html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p {
-    font-family: 'Poppins', sans-serif !important;
-}
-
+html, body, p, h1, h2, h3, h4, h5, h6, label, input, select, textarea, table, button p { font-family: 'Poppins', sans-serif !important; }
 .stApp { background-color: #0b172a; }
 [data-testid="stSidebar"] { background-color: #060d1a; border-right: 1px solid #1e3a5f; }
-
-.sidebar-header {
-    font-size: 0.8rem;
-    color: #4db8ff;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    font-weight: 700;
-    margin-top: 25px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #1e3a5f;
-    padding-bottom: 8px;
-    font-family: 'Poppins', sans-serif !important;
-}
-
+.sidebar-header { font-size: 0.8rem; color: #4db8ff; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px; font-family: 'Poppins', sans-serif !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
-
-[data-testid="stVerticalBlockBorderWrapper"], div[role="dialog"] {
-    background-color: #0f1c2e !important;
-    border: 1px solid #1e3a5f !important;
-    border-radius: 16px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
-}
-
-[data-testid="stDialog"] > div {
-    background-color: #0b172a !important;
-    border-radius: 20px !important;
-    border: 1px solid #2a4365 !important;
-}
+[data-testid="stVerticalBlockBorderWrapper"], div[role="dialog"] { background-color: #0f1c2e !important; border: 1px solid #1e3a5f !important; border-radius: 16px !important; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important; }
+[data-testid="stDialog"] > div { background-color: #0b172a !important; border-radius: 20px !important; border: 1px solid #2a4365 !important; }
 [data-testid="stDialog"] header { background-color: #0b172a !important; }
-
-.stTextInput input, .stNumberInput input, 
-[data-baseweb="select"] > div, 
-.stDateInput input, .stTimeInput input, textarea {
-    background-color: #16263b !important;
-    color: #e2e8f0 !important;
-    border: 1px solid #2a4365 !important;
-    border-radius: 8px !important;
-    font-size: 15px !important;
-    letter-spacing: 0.3px !important;
-}
-
-div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within {
-    border-color: #4db8ff !important;
-    box-shadow: inset 0 0 0 1px #4db8ff !important;
-}
-
-button[kind="primary"] {
-    background: linear-gradient(90deg, #10b981, #059669) !important;
-    color: white !important;
-    font-weight: 600 !important;
-    border: none !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
-    transition: all 0.2s ease !important;
-}
-button[kind="primary"]:hover {
-    background: linear-gradient(90deg, #059669, #047857) !important;
-    transform: translateY(-2px);
-}
+.stTextInput input, .stNumberInput input, [data-baseweb="select"] > div, .stDateInput input, .stTimeInput input, textarea { background-color: #16263b !important; color: #e2e8f0 !important; border: 1px solid #2a4365 !important; border-radius: 8px !important; font-size: 15px !important; letter-spacing: 0.3px !important; }
+div[data-baseweb="input"]:focus-within, div[data-baseweb="select"]:focus-within { border-color: #4db8ff !important; box-shadow: inset 0 0 0 1px #4db8ff !important; }
+button[kind="primary"] { background: linear-gradient(90deg, #10b981, #059669) !important; color: white !important; font-weight: 600 !important; border: none !important; border-radius: 8px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important; transition: all 0.2s ease !important; }
+button[kind="primary"]:hover { background: linear-gradient(90deg, #059669, #047857) !important; transform: translateY(-2px); }
 button[kind="primary"] * { color: white !important; }
-
-button[kind="secondary"] {
-    background-color: #16263b !important;
-    border: 1px solid #1e3a5f !important;
-    border-radius: 10px !important;
-    padding: 15px !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 90px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;  
-    justify-content: center !important; 
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
-    transition: all 0.2s ease !important;
-}
-button[kind="secondary"]:hover {
-    transform: translateY(-3px) !important;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.4) !important;
-}
-button[kind="secondary"] p {
-    white-space: pre-wrap !important;
-    font-size: 1.15rem !important;
-    color: #e2e8f0 !important;
-    margin: 0 !important;
-    line-height: 1.5 !important;
-    text-align: center !important;  
-    width: 100% !important;
-}
-
-/* 🎨 DYNAMIC COLORS ΓΙΑ ΤΑ ΣΤΑΤΙΣΤΙΚΑ */
-div[data-testid="stElementContainer"]:has(.marker-positive),
-div[data-testid="stElementContainer"]:has(.marker-negative),
-div[data-testid="stElementContainer"]:has(.marker-neutral),
-div[data-testid="stElementContainer"]:has(.marker-warning),
-div[data-testid="stElementContainer"]:has(.marker-info),
-div[data-testid="stElementContainer"]:has(.marker-gold),
-div[data-testid="stElementContainer"]:has(.marker-dark),
-div[data-testid="stElementContainer"]:has(.marker-player1),
-div[data-testid="stElementContainer"]:has(.marker-player2) {
-    margin: 0 !important; height: 0 !important; display: none !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #10b981 !important; background-color: rgba(16, 185, 129, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button p {
-    color: #10b981 !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #ef4444 !important; background-color: rgba(239, 68, 68, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button p {
-    color: #ef4444 !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #f59e0b !important; background-color: rgba(245, 158, 11, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button p {
-    color: #f59e0b !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #3b82f6 !important; background-color: rgba(59, 130, 246, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button p {
-    color: #3b82f6 !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #fbbf24 !important; background-color: rgba(251, 191, 36, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button p {
-    color: #fbbf24 !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #9ca3af !important; background-color: rgba(156, 163, 175, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button p {
-    color: #9ca3af !important; font-weight: 600 !important;
-}
-
-div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #c084fc !important; background-color: rgba(192, 132, 252, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button p {
-    color: #c084fc !important; font-weight: 600 !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-player2) + div[data-testid="stElementContainer"] button {
-    border: 1px solid #f472b6 !important; background-color: rgba(244, 114, 182, 0.05) !important;
-}
-div[data-testid="stElementContainer"]:has(.marker-player2) + div[data-testid="stElementContainer"] button p {
-    color: #f472b6 !important; font-weight: 600 !important;
-}
-
-/* 🔹 ΤΟ ΑΛΕΞΙΣΦΑΙΡΟ FLOATING PILL 🔹 */
+button[kind="secondary"] { background-color: #16263b !important; border: 1px solid #1e3a5f !important; border-radius: 10px !important; padding: 15px !important; width: 100% !important; height: auto !important; min-height: 90px !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important; transition: all 0.2s ease !important; }
+button[kind="secondary"]:hover { transform: translateY(-3px) !important; box-shadow: 0 6px 12px rgba(0,0,0,0.4) !important; }
+button[kind="secondary"] p { white-space: pre-wrap !important; font-size: 1.15rem !important; color: #e2e8f0 !important; margin: 0 !important; line-height: 1.5 !important; text-align: center !important; width: 100% !important; }
+div[data-testid="stElementContainer"]:has(.marker-positive), div[data-testid="stElementContainer"]:has(.marker-negative), div[data-testid="stElementContainer"]:has(.marker-neutral), div[data-testid="stElementContainer"]:has(.marker-warning), div[data-testid="stElementContainer"]:has(.marker-info), div[data-testid="stElementContainer"]:has(.marker-gold), div[data-testid="stElementContainer"]:has(.marker-dark), div[data-testid="stElementContainer"]:has(.marker-player1), div[data-testid="stElementContainer"]:has(.marker-player2) { margin: 0 !important; height: 0 !important; display: none !important; }
+div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button { border: 1px solid #10b981 !important; background-color: rgba(16, 185, 129, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-positive) + div[data-testid="stElementContainer"] button p { color: #10b981 !important; font-weight: 600 !important; }
+div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button { border: 1px solid #ef4444 !important; background-color: rgba(239, 68, 68, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-negative) + div[data-testid="stElementContainer"] button p { color: #ef4444 !important; font-weight: 600 !important; }
+div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button { border: 1px solid #f59e0b !important; background-color: rgba(245, 158, 11, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-warning) + div[data-testid="stElementContainer"] button p { color: #f59e0b !important; font-weight: 600 !important; }
+div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button { border: 1px solid #3b82f6 !important; background-color: rgba(59, 130, 246, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-info) + div[data-testid="stElementContainer"] button p { color: #3b82f6 !important; font-weight: 600 !important; }
+div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button { border: 1px solid #fbbf24 !important; background-color: rgba(251, 191, 36, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-gold) + div[data-testid="stElementContainer"] button p { color: #fbbf24 !important; font-weight: 600 !important; }
+div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button { border: 1px solid #9ca3af !important; background-color: rgba(156, 163, 175, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-dark) + div[data-testid="stElementContainer"] button p { color: #9ca3af !important; font-weight: 600 !important; }
+div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button { border: 1px solid #c084fc !important; background-color: rgba(192, 132, 252, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button p { color: #c084fc !important; font-weight: 600 !important; }
+div[data-testid="stElementContainer"]:has(.marker-player2) + div[data-testid="stElementContainer"] button { border: 1px solid #f472b6 !important; background-color: rgba(244, 114, 182, 0.05) !important; }
+div[data-testid="stElementContainer"]:has(.marker-player2) + div[data-testid="stElementContainer"] button p { color: #f472b6 !important; font-weight: 600 !important; }
 div[data-testid="stElementContainer"]:has(.fab-marker) { display: none !important; }
-div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] {
-    position: fixed !important; bottom: 30px !important; right: 30px !important; z-index: 999999 !important; width: auto !important;
-}
-div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button {
-    border-radius: 50px !important; padding: 15px 35px !important;
-    background: linear-gradient(135deg, #0284c7, #10b981) !important;
-    border: none !important; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4) !important;
-}
-div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button p {
-    color: white !important; font-size: 16px !important; font-weight: bold !important;
-}
-
-/* 🔹 TABS STYLING */
-button[data-baseweb="tab"] {
-    background-color: transparent !important; color: #a8dadc !important; font-family: 'Poppins', sans-serif !important; font-weight: 500 !important;
-}
-button[data-baseweb="tab"][aria-selected="true"] {
-    color: #4db8ff !important; border-bottom: 2px solid #4db8ff !important;
-}
-
+div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] { position: fixed !important; bottom: 30px !important; right: 30px !important; z-index: 999999 !important; width: auto !important; }
+div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button { border-radius: 50px !important; padding: 15px 35px !important; background: linear-gradient(135deg, #0284c7, #10b981) !important; border: none !important; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4) !important; }
+div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button p { color: white !important; font-size: 16px !important; font-weight: bold !important; }
+button[data-baseweb="tab"] { background-color: transparent !important; color: #a8dadc !important; font-family: 'Poppins', sans-serif !important; font-weight: 500 !important; }
+button[data-baseweb="tab"][aria-selected="true"] { color: #4db8ff !important; border-bottom: 2px solid #4db8ff !important; }
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
-div[role="radiogroup"] > label {
-    background-color: #16263b !important; padding: 12px 15px !important; 
-    border-radius: 8px !important; border: 1px solid #1e3a5f !important; margin-bottom: 12px !important; 
-    cursor: pointer;
-}
+div[role="radiogroup"] > label { background-color: #16263b !important; padding: 12px 15px !important; border-radius: 8px !important; border: 1px solid #1e3a5f !important; margin-bottom: 12px !important; cursor: pointer; }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# Αρχικοποίηση State Μεταβλητών
 if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_counter'] = 0
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
@@ -276,8 +146,7 @@ def update_auto_odds(reset_id, num_legs):
         if leg_odds_key in st.session_state and leg_status_key in st.session_state:
             val = float(st.session_state[leg_odds_key])
             stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο":
-                total_odds *= val
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
     st.session_state['auto_odds_multi'] = total_odds
 
 def update_auto_odds_edit(aa_val, num_legs):
@@ -288,12 +157,11 @@ def update_auto_odds_edit(aa_val, num_legs):
         if leg_odds_key in st.session_state and leg_status_key in st.session_state:
             val = float(st.session_state[leg_odds_key])
             stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο":
-                total_odds *= val
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
     st.session_state['auto_odds_multi'] = total_odds
 
 # ==========================================
-# 🧠 AI-Like Έξυπνη Αναζήτηση 
+# 🧠 AI-Like Έξυπνη Αναζήτηση & Βοηθός 
 # ==========================================
 def normalize_greek(text):
     if not text: return ""
@@ -304,8 +172,7 @@ def find_team_match(t, norm_teams_dict):
     m = difflib.get_close_matches(t, norm_teams_dict.keys(), n=1, cutoff=0.65)
     if m: return norm_teams_dict[m[0]]
     for kt in norm_teams_dict.keys():
-        if t in kt and len(t) >= 4:
-            return norm_teams_dict[kt]
+        if t in kt and len(t) >= 4: return norm_teams_dict[kt]
     return t
 
 def get_event_suggestions(user_text, all_events, all_teams):
@@ -338,14 +205,12 @@ def get_market_suggestions(user_text, all_markets):
     norm_user = normalize_greek(user_text)
     if norm_user in [normalize_greek(m) for m in all_markets]: return []
     ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
-    
     def get_entity_prefix(text):
         words = []
         for w in text.split():
             if re.search(r'\d', w) or w in ignore_break_words: break
             words.append(w)
         return " ".join(words)
-
     user_prefix = get_entity_prefix(norm_user)
     scored_markets = []
     for m in all_markets:
@@ -383,32 +248,49 @@ def calc_overall_status(legs_list):
     elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
     else: return "🔵 Ακυρωμένο"
 
+# --- THE SMART EVENT BUILDER WIZARD ---
+def render_event_input(sport, key_pref, mode, container=st):
+    if mode == "✍️ Ελεύθερο Κείμενο" or sport not in SPORTS_HIERARCHY:
+        ev_str = container.text_input("Αγώνας (Ομάδες / Παίκτες):", key=f"{key_pref}_txt")
+        render_suggestions(container, f"{key_pref}_txt", ev_str, get_event_suggestions, (all_events, all_teams))
+        return ev_str
+    else:
+        lg_col, t1_col, t2_col = container.columns([1.5, 2, 2])
+        leagues = list(SPORTS_HIERARCHY[sport].keys())
+        lg = lg_col.selectbox("🏆 Διοργάνωση", leagues, key=f"{key_pref}_lg")
+        
+        if lg == "Άλλη Διοργάνωση...":
+            return t1_col.text_input("Αγώνας (π.χ. Ολυμπιακός - ΠΑΟΚ):", key=f"{key_pref}_man_ev")
+        else:
+            teams = SPORTS_HIERARCHY[sport][lg]
+            t1 = t1_col.selectbox("🏠 Γηπεδούχος / P1", teams + ["✏️ Άλλη..."], key=f"{key_pref}_t1")
+            if t1 == "✏️ Άλλη...":
+                t1 = t1_col.text_input("Γράψε Ομάδα 1:", key=f"{key_pref}_t1_man")
+                
+            t2 = t2_col.selectbox("✈️ Φιλοξενούμενος / P2", teams + ["✏️ Άλλη..."], key=f"{key_pref}_t2")
+            if t2 == "✏️ Άλλη...":
+                t2 = t2_col.text_input("Γράψε Ομάδα 2:", key=f"{key_pref}_t2_man")
+                
+            if t1 and t2:
+                return f"{t1} - {t2}"
+            return ""
+
 # ==========================================
 # 🧾 PREMIUM DIGITAL RECEIPT
 # ==========================================
 def render_ticket_html(aa_val, df_source):
     row = df_source[df_source['Α/Α'] == aa_val].iloc[0]
-    
     status_color = "#4db8ff"
     stamp_text = ""
     stamp_color = ""
-    
     if row['Status'] == "🟢 Κερδισμένο": 
-        status_color = "#10b981"
-        stamp_text = "WON"
-        stamp_color = "rgba(16, 185, 129, 0.15)"
+        status_color = "#10b981"; stamp_text = "WON"; stamp_color = "rgba(16, 185, 129, 0.15)"
     elif row['Status'] == "🔴 Χαμένο": 
-        status_color = "#ef4444"
-        stamp_text = "LOST"
-        stamp_color = "rgba(239, 68, 68, 0.15)"
+        status_color = "#ef4444"; stamp_text = "LOST"; stamp_color = "rgba(239, 68, 68, 0.15)"
     elif row['Status'] == "🟡 Cash Out": 
-        status_color = "#f59e0b"
-        stamp_text = "CASH OUT"
-        stamp_color = "rgba(245, 158, 11, 0.15)"
+        status_color = "#f59e0b"; stamp_text = "CASH OUT"; stamp_color = "rgba(245, 158, 11, 0.15)"
     elif row['Status'] == "🔵 Ακυρωμένο": 
-        status_color = "#3b82f6"
-        stamp_text = "VOID"
-        stamp_color = "rgba(59, 130, 246, 0.15)"
+        status_color = "#3b82f6"; stamp_text = "VOID"; stamp_color = "rgba(59, 130, 246, 0.15)"
     
     total_return = row['Stake'] + row['Profit'] if row['Status'] != "⚪ Εκκρεμές" else 0.0
     profit_str = f"+{row['Profit']:.2f} €" if row['Profit'] > 0 else f"{row['Profit']:.2f} €"
@@ -416,24 +298,15 @@ def render_ticket_html(aa_val, df_source):
     
     html_parts = []
     html_parts.append(f'<div style="background: linear-gradient(135deg, #16263b, #0f1c2e); padding: 30px; border-radius: 16px; border: 1px solid #1e3a5f; box-shadow: 0 15px 35px rgba(0,0,0,0.6); position: relative; overflow: hidden; font-family: \'Poppins\', sans-serif;">')
-    
-    if stamp_text:
-        html_parts.append(f"<div style='position:absolute; top:50px; right:10px; color:{stamp_color}; font-size:65px; font-weight:900; transform:rotate(-15deg); border:4px solid {stamp_color}; padding:5px 15px; border-radius:15px; z-index:0; pointer-events:none; letter-spacing: 2px;'>{stamp_text}</div>")
-    
+    if stamp_text: html_parts.append(f"<div style='position:absolute; top:50px; right:10px; color:{stamp_color}; font-size:65px; font-weight:900; transform:rotate(-15deg); border:4px solid {stamp_color}; padding:5px 15px; border-radius:15px; z-index:0; pointer-events:none; letter-spacing: 2px;'>{stamp_text}</div>")
     html_parts.append(f'''<div style="text-align: center; border-bottom: 2px dashed #2a4365; padding-bottom: 15px; margin-bottom: 20px; position: relative; z-index: 1;">
         <p style="margin: 0; color: #a8dadc; font-size: 13px; letter-spacing: 1px;">TICKET ID: {ticket_id}</p>
         <h2 style="margin: 5px 0 0 0; color: {status_color}; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;">{row['Status']}</h2>
         <p style="margin: 5px 0 0 0; color: #718096; font-size: 13px;">{row['Date'].strftime('%d/%m/%Y')} • {row['Time'].strftime('%H:%M')}</p>
     </div>
     <div style="display: flex; justify-content: space-between; margin-bottom: 20px; position: relative; z-index: 1;">
-        <div>
-            <p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΑΘΛΗΜΑ</p>
-            <p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Sport']}</p>
-        </div>
-        <div style="text-align: right;">
-            <p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΤΥΠΟΣ</p>
-            <p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Type']}</p>
-        </div>
+        <div><p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΑΘΛΗΜΑ</p><p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Sport']}</p></div>
+        <div style="text-align: right;"><p style="margin: 0; font-size: 11px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px;">ΤΥΠΟΣ</p><p style="margin: 0; font-size: 17px; font-weight: 600; color: #e2e8f0;">{row['Type']}</p></div>
     </div>
     <div style="margin-bottom: 25px; position: relative; z-index: 1;">
         <p style="margin: 0 0 15px 0; font-size: 12px; color: #4db8ff; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #1e3a5f; padding-bottom: 8px;">ΕΠΙΛΟΓΕΣ ΔΕΛΤΙΟΥ</p>''')
@@ -457,7 +330,6 @@ def render_ticket_html(aa_val, df_source):
                     if "Κερδισμένο" in l_st: l_color = "#10b981"
                     elif "Χαμένο" in l_st: l_color = "#ef4444"
                     elif "Ακυρωμένο" in l_st: l_color = "#3b82f6"
-                    
                     ev_name = leg.get('event', row['Event'])
                     html_parts.append(f'''<div style="background-color: rgba(6, 13, 26, 0.5); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid {l_color};">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -469,34 +341,20 @@ def render_ticket_html(aa_val, df_source):
                             <span style="font-weight: 700; font-size: 16px; color: #4db8ff;">{float(leg.get('odds', 1.0)):.2f}</span>
                         </div>
                     </div>''')
-            except Exception:
-                pass
+            except Exception: pass
     
     html_parts.append(f'''</div>
     <div style="border-top: 2px dashed #2a4365; padding-top: 20px; position: relative; z-index: 1;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
-            <div>
-                <p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΠΟΝΤΑΡΙΣΜΑ</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Stake']:.2f} €</p>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΣΥΝ. ΑΠΟΔΟΣΗ</p>
-                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Odds']:.2f}</p>
-            </div>
+            <div><p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΠΟΝΤΑΡΙΣΜΑ</p><p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Stake']:.2f} €</p></div>
+            <div style="text-align: right;"><p style="margin: 0; font-size: 12px; color: #718096; text-transform: uppercase;">ΣΥΝ. ΑΠΟΔΟΣΗ</p><p style="margin: 0; font-size: 18px; font-weight: 600; color: #e2e8f0;">{row['Odds']:.2f}</p></div>
         </div>
         <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΣΥΝ. ΕΠΙΣΤΡΟΦΗ</p>
-                <p style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">{total_return:.2f} €</p>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΚΑΘΑΡΟ ΚΕΡΔΟΣ</p>
-                <p style="margin: 0; font-size: 24px; font-weight: 700; color: {status_color};">{profit_str}</p>
-            </div>
+            <div><p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΣΥΝ. ΕΠΙΣΤΡΟΦΗ</p><p style="margin: 0; font-size: 24px; font-weight: 700; color: #ffffff;">{total_return:.2f} €</p></div>
+            <div style="text-align: right;"><p style="margin: 0; font-size: 12px; color: #a8dadc; text-transform: uppercase;">ΚΑΘΑΡΟ ΚΕΡΔΟΣ</p><p style="margin: 0; font-size: 24px; font-weight: 700; color: {status_color};">{profit_str}</p></div>
         </div>
     </div>
     </div>''')
-    
     st.markdown("".join(html_parts), unsafe_allow_html=True)
 
 @st.dialog("🧾 Απόδειξη Στοιχήματος", width="large")
@@ -513,7 +371,6 @@ def show_bets_dialog(title_str, df_to_show, full_df):
     if not df_to_show.empty:
         disp = df_to_show.drop(columns=['Legs_Data'], errors='ignore')[DISPLAY_ORDER].sort_values(by=["Date", "Time"], ascending=False)
         event = st.dataframe(disp, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row")
-        
         if event.selection.rows:
             sel_idx = event.selection.rows[0]
             sel_aa = disp.iloc[sel_idx]['Α/Α']
@@ -581,11 +438,12 @@ def new_bet_dialog():
         num_legs = st.number_input("Πόσα σημεία (ή αγώνες) έχει το δελτίο;", min_value=2, max_value=15, value=2, key=f"legs_num_{reset_id}")
     
     st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns([2, 2, 3, 3])
     d = c1.date_input("Ημερομηνία", date.today(), format="DD/MM/YYYY", key=f"date_{reset_id}")
     t = c2.time_input("Ώρα", datetime.now().time(), step=60, key=f"time_{reset_id}")
     basket_index = list(SPORT_ICONS.values()).index("🏀 Μπάσκετ")
     selected_sport_input = c3.selectbox("Άθλημα", list(SPORT_ICONS.values()), index=basket_index, key=f"sport_{reset_id}")
+    entry_mode = c4.selectbox("Εισαγωγή Ομάδων:", ["🤖 Έξυπνος Βοηθός", "✍️ Ελεύθερο Κείμενο"], key=f"entry_mode_{reset_id}")
     
     legs = []
     event_str, market_str = "", ""
@@ -594,23 +452,17 @@ def new_bet_dialog():
     
     if bet_type == "Μονό":
         st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>2. Αγώνας & Αγορά</h5>", unsafe_allow_html=True)
-        c_ev, c_ma = st.columns(2)
-        event_key = f"ev_single_txt_{reset_id}"
-        event_str = c_ev.text_input("Αγώνας:", key=event_key)
-        render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
+        event_str = render_event_input(selected_sport_input, f"ev_single_{reset_id}", entry_mode, st)
         market_key = f"ma_single_txt_{reset_id}"
-        market_str = c_ma.text_input("Αγορά:", key=market_key)
-        render_suggestions(c_ma, market_key, market_str, get_market_suggestions, (all_markets,))
+        market_str = st.text_input("Αγορά:", key=market_key)
+        render_suggestions(st, market_key, market_str, get_market_suggestions, (all_markets,))
         
     elif bet_type == "Bet Builder":
         st.info("💡 Στο απλό Bet Builder (ίδιος αγώνας), η συνολική απόδοση δίνεται από τον bookmaker. Συμπλήρωσέ τη χειροκίνητα στο Βήμα 3!")
         st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>2. Κοινός Αγώνας & Σημεία</h5>", unsafe_allow_html=True)
-        c_ev, _ = st.columns(2)
-        event_key = f"bb_ev_txt_{reset_id}"
-        event_str = c_ev.text_input("Αγώνας (Για όλα τα σημεία):", key=event_key)
-        render_suggestions(c_ev, event_key, event_str, get_event_suggestions, (all_events, all_teams))
-
+        event_str = render_event_input(selected_sport_input, f"bb_ev_{reset_id}", entry_mode, st)
         st.markdown("<br>", unsafe_allow_html=True)
+        
         for i in range(int(num_legs)):
             cc2, cc3, cc4 = st.columns([3,1,2])
             l_ma_key = f"bb_ma_t_{i}_{reset_id}"
@@ -627,17 +479,16 @@ def new_bet_dialog():
         temp_odds = 1.0
         for i in range(int(num_legs)):
             st.markdown(f"<div style='background-color: rgba(22, 38, 59, 0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #4db8ff;'>", unsafe_allow_html=True)
-            c_ev, c_od, c_st = st.columns([4,2,2])
+            st.markdown(f"**Αγώνας {i+1}**")
             
-            l_ev_key = f"pbb_ev_{i}_{reset_id}"
-            l_ev = c_ev.text_input(f"Αγώνας {i+1}:", key=l_ev_key)
-            render_suggestions(c_ev, l_ev_key, l_ev, get_event_suggestions, (all_events, all_teams))
+            l_ev = render_event_input(selected_sport_input, f"pbb_ev_{i}_{reset_id}", entry_mode, st)
             
-            l_od = c_od.number_input(f"Απόδοση Αγώνα:", min_value=1.00, step=0.01, value=1.50, key=f"leg_od_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
-            l_st = c_st.selectbox(f"Κατάστ.:", STATUS_LIST, key=f"leg_st_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
-            
+            c_ma, c_od, c_st = st.columns([4, 1, 2])
             l_ma_key = f"pbb_ma_{i}_{reset_id}"
-            l_ma = st.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", height=80, key=l_ma_key, placeholder="π.χ.\n1 & Over 2.5\nΣκοράρει ο Vini")
+            l_ma = c_ma.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", height=68, key=l_ma_key, placeholder="π.χ.\n1 & Over 2.5\nΣκοράρει ο Vini")
+            
+            l_od = c_od.number_input(f"Απόδοση:", min_value=1.00, step=0.01, value=1.50, key=f"leg_od_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
+            l_st = c_st.selectbox(f"Κατάσταση:", STATUS_LIST, key=f"leg_st_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
             st.markdown("</div>", unsafe_allow_html=True)
             
             clean_ma = l_ma.replace('\n', ' | ') if l_ma else ""
@@ -651,16 +502,19 @@ def new_bet_dialog():
         st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px; font-family: Poppins;'>2. Ανάλυση Σημείων</h5>", unsafe_allow_html=True)
         temp_odds = 1.0
         for i in range(int(num_legs)):
-            cc1, cc2, cc3, cc4 = st.columns([3,3,1,2])
-            l_ev_key = f"ev_t_{i}_{reset_id}"
-            l_ev = cc1.text_input(f"Αγώνας {i+1}", key=l_ev_key)
-            render_suggestions(cc1, l_ev_key, l_ev, get_event_suggestions, (all_events, all_teams))
+            st.markdown(f"<div style='background-color: rgba(22, 38, 59, 0.4); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #10b981;'>", unsafe_allow_html=True)
+            st.markdown(f"**Σημείο {i+1}**")
+            
+            l_ev = render_event_input(selected_sport_input, f"ev_t_{i}_{reset_id}", entry_mode, st)
+            
+            cc2, cc3, cc4 = st.columns([3, 1, 2])
             l_ma_key = f"ma_t_{i}_{reset_id}"
-            l_ma = cc2.text_input(f"Σημείο {i+1}", key=l_ma_key)
+            l_ma = cc2.text_input(f"Αγορά:", key=l_ma_key)
             render_suggestions(cc2, l_ma_key, l_ma, get_market_suggestions, (all_markets,))
             
-            l_od = cc3.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=1.50, key=f"leg_od_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
-            l_st = cc4.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, key=f"leg_st_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
+            l_od = cc3.number_input(f"Απόδοση:", min_value=1.00, step=0.01, value=1.50, key=f"leg_od_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
+            l_st = cc4.selectbox(f"Κατάστ.:", STATUS_LIST, key=f"leg_st_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
+            st.markdown("</div>", unsafe_allow_html=True)
             
             legs.append({"event": l_ev, "market": l_ma, "odds": l_od, "status": l_st})
             if l_st != "🔵 Ακυρωμένο": temp_odds *= l_od
@@ -872,7 +726,7 @@ else:
     max_d = df['Date'].max() if not df.empty else date.today()
     date_filter = st.sidebar.date_input("📅 Επιλογή Ημερομηνιών", value=(min_d, max_d), format="DD/MM/YYYY")
 
-search_event = st.sidebar.text_input("🔍 Λέξη-Κλειδί (Ομάδα/Αγώνας)")
+search_event = st.sidebar.text_input("🔍 Λέξη-Κλειδί (Ομάδα/Αγώνας/Παίκτης)")
 sports_list = ["Όλα"] + sorted(df['Sport'].dropna().astype(str).unique().tolist())
 selected_sport = st.sidebar.selectbox("🎯 Άθλημα", sports_list)
 types_list = ["Όλοι οι Τύποι"] + sorted(df['Type'].dropna().astype(str).unique().tolist())
@@ -990,7 +844,6 @@ if page == "📊 Dashboard & Στατιστικά":
         max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
         max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
 
-        # ΣΕΡΙ ΝΙΚΩΝ/ΗΤΤΩΝ
         max_win_streak, max_lose_streak = 0, 0
         current_w, current_l = 0, 0
         win_streak_idx, lose_streak_idx = [], []
@@ -1014,7 +867,7 @@ if page == "📊 Dashboard & Στατιστικά":
         count_void = len(filtered_df[filtered_df['Status'] == "🔵 Ακυρωμένο"])
         count_pending = len(filtered_df[filtered_df['Status'] == "⚪ Εκκρεμές"])
 
-        # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ (12 Κάρτες σε 3 Γραμμές) ---
+        # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ ---
         st.markdown("### 🏆 Στατιστικά Ταμείου & Money Management")
         
         col_a, col_b, col_c, col_d = st.columns(4)
@@ -1148,24 +1001,16 @@ if page == "📊 Dashboard & Στατιστικά":
                     try:
                         legs = json.loads(legs_str)
                         lost_legs_count = sum(1 for l in legs if "Χαμένο" in l.get('status', ''))
-                        
                         for leg in legs:
                             leg_st = leg.get('status', '')
-                            if ticket_status == "🟢 Κερδισμένο":
-                                leg_profit = ticket_prof 
+                            if ticket_status == "🟢 Κερδισμένο": leg_profit = ticket_prof 
                             elif ticket_status == "🔴 Χαμένο":
-                                if "Χαμένο" in leg_st:
-                                    leg_profit = -stake / lost_legs_count if lost_legs_count > 0 else -stake
-                                else:
-                                    leg_profit = 0.0 
-                            elif ticket_status == "🟡 Cash Out":
-                                leg_profit = ticket_prof
-                            else:
-                                leg_profit = 0.0
-                                
+                                if "Χαμένο" in leg_st: leg_profit = -stake / lost_legs_count if lost_legs_count > 0 else -stake
+                                else: leg_profit = 0.0 
+                            elif ticket_status == "🟡 Cash Out": leg_profit = ticket_prof
+                            else: leg_profit = 0.0
                             process_entities(leg.get('event', row['Event']), leg.get('market', ''), leg_profit)
-                    except:
-                        pass
+                    except: pass
 
         best_team, best_team_prof = max(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
         worst_team, worst_team_prof = min(team_profits.items(), key=lambda x: x[1]) if team_profits else ("-", 0.0)
@@ -1181,33 +1026,27 @@ if page == "📊 Dashboard & Στατιστικά":
         
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
         if c_ff1.button(f"☀️ Σερί Θετικών Ημερών\n{max_pos_days} Μέρες", key="btn_ff_pos", use_container_width=True):
-            if max_pos_days > 0:
-                show_bets_dialog(f"☀️ Στοιχήματα ({max_pos_days} Κερδοφόρες Μέρες)", completed_bets[completed_bets['Date'].isin(max_pos_dates)], df)
-            else:
-                st.toast("Δεν υπάρχει σερί θετικών ημερών ακόμα!", icon="⚠️")
+            if max_pos_days > 0: show_bets_dialog(f"☀️ Στοιχήματα ({max_pos_days} Κερδοφόρες Μέρες)", completed_bets[completed_bets['Date'].isin(max_pos_dates)], df)
+            else: st.toast("Δεν υπάρχει σερί θετικών ημερών ακόμα!", icon="⚠️")
                 
         st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
         if c_ff2.button(f"⛈️ Σερί Αρνητικών Ημερών\n{max_neg_days} Μέρες", key="btn_ff_neg", use_container_width=True):
-            if max_neg_days > 0:
-                show_bets_dialog(f"⛈️ Στοιχήματα ({max_neg_days} Ζημιογόνες Μέρες)", completed_bets[completed_bets['Date'].isin(max_neg_dates)], df)
-            else:
-                st.toast("Δεν υπάρχει σερί αρνητικών ημερών ακόμα!", icon="⚠️")
+            if max_neg_days > 0: show_bets_dialog(f"⛈️ Στοιχήματα ({max_neg_days} Ζημιογόνες Μέρες)", completed_bets[completed_bets['Date'].isin(max_neg_dates)], df)
+            else: st.toast("Δεν υπάρχει σερί αρνητικών ημερών ακόμα!", icon="⚠️")
 
         st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
         if c_ff3.button(f"🏆 Χρυσή Ομάδα\n{best_team_disp} (+{best_team_prof:.2f} €)" if best_team_prof > 0 else "🏆 Χρυσή Ομάδα\n-", key="btn_ff_best", use_container_width=True):
             if best_team_prof > 0:
                 team_df = completed_bets[completed_bets['Event'].str.contains(best_team, na=False) | completed_bets['Legs_Data'].str.contains(best_team, na=False)]
                 show_bets_dialog(f"🏆 Ιστορικό: Αγώνες με {best_team}", team_df, df)
-            else:
-                st.toast("Δεν υπάρχει ακόμα κερδοφόρα ομάδα!", icon="⚠️")
+            else: st.toast("Δεν υπάρχει ακόμα κερδοφόρα ομάδα!", icon="⚠️")
 
         st.markdown('<div class="marker-dark"></div>', unsafe_allow_html=True)
         if c_ff4.button(f"🧊 Μαύρη Λίστα Ομάδων\n{worst_team_disp} ({worst_team_prof:.2f} €)" if worst_team_prof < 0 else "🧊 Μαύρη Λίστα\n-", key="btn_ff_worst", use_container_width=True):
             if worst_team_prof < 0:
                 team_df = completed_bets[completed_bets['Event'].str.contains(worst_team, na=False) | completed_bets['Legs_Data'].str.contains(worst_team, na=False)]
                 show_bets_dialog(f"🧊 Ιστορικό: Αγώνες με {worst_team}", team_df, df)
-            else:
-                st.toast("Δεν υπάρχει ακόμα ζημιογόνα ομάδα!", icon="⚠️")
+            else: st.toast("Δεν υπάρχει ακόμα ζημιογόνα ομάδα!", icon="⚠️")
                 
         c_ff5, c_ff6, c_ff7, c_ff8 = st.columns(4)
         
@@ -1216,16 +1055,14 @@ if page == "📊 Dashboard & Στατιστικά":
             if best_player_prof > 0:
                 p_df = completed_bets[completed_bets['Market'].str.contains(best_player, na=False) | completed_bets['Legs_Data'].str.contains(best_player, na=False)]
                 show_bets_dialog(f"🥇 Ιστορικό: Στοιχήματα σε {best_player}", p_df, df)
-            else:
-                st.toast("Δεν υπάρχει κερδοφόρος παίκτης!", icon="⚠️")
+            else: st.toast("Δεν υπάρχει κερδοφόρος παίκτης!", icon="⚠️")
                 
         st.markdown('<div class="marker-player2"></div>', unsafe_allow_html=True)
         if c_ff6.button(f"📉 Χειρότερος Παίκτης\n{worst_player_disp} ({worst_player_prof:.2f} €)" if worst_player_prof < 0 else "📉 Χειρότερος Παίκτης\n-", key="btn_ff_pworst", use_container_width=True):
             if worst_player_prof < 0:
                 p_df = completed_bets[completed_bets['Market'].str.contains(worst_player, na=False) | completed_bets['Legs_Data'].str.contains(worst_player, na=False)]
                 show_bets_dialog(f"📉 Ιστορικό: Στοιχήματα σε {worst_player}", p_df, df)
-            else:
-                st.toast("Δεν υπάρχει ζημιογόνος παίκτης!", icon="⚠️")
+            else: st.toast("Δεν υπάρχει ζημιογόνος παίκτης!", icon="⚠️")
 
         # 🧠 ΑΝΑΤΟΜΙΑ ΣΤΟΙΧΗΜΑΤΩΝ (ADVANCED ANALYTICS)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -1322,7 +1159,6 @@ if page == "📊 Dashboard & Στατιστικά":
                     x=alt.X('Bet_Count:Q', axis=alt.Axis(labels=False, title=None, ticks=False, grid=False)),
                     y=alt.Y(f'{y_col}:Q', title=y_title, axis=alt.Axis(gridColor="#1f2937"))
                 )
-                
                 area = base.mark_area(interpolate='basis', opacity=0.3).encode(
                     color=alt.condition(alt.datum[y_col] >= zero_val, alt.value('#10b981'), alt.value('#ef4444'))
                 )
