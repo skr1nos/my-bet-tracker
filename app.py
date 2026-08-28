@@ -42,7 +42,6 @@ def get_current_greek_time():
         tz = ZoneInfo('Europe/Athens')
         return datetime.now(tz).time()
     except Exception:
-        # Fallback ασφαλείας αν δεν υποστηρίζεται το zoneinfo (προσθέτει 3 ώρες στην παγκόσμια ώρα)
         return (datetime.utcnow() + timedelta(hours=3)).time()
 
 EXPECTED_COLS = ['Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Status', 'Profit', 'Legs_Data']
@@ -1040,7 +1039,7 @@ def new_bet_dialog():
             if status_sel == "Αυτόματος Υπολογισμός ⚙️": status = calc_overall_status(legs)
             else: status = "🟡 Cash Out"
         else:
-            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=safe_float(st.session_state.get('auto_odds_multi', 1.0), 1.00), key=f"odds_multi_{reset_id}")
+            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=float(st.session_state.get('auto_odds_multi', 1.0)), key=f"odds_multi_{reset_id}")
             chosen_preset = c6.selectbox("Ποντάρισμα (Στρατηγική)", STAKE_PRESETS_DYNAMIC, key=f"stake_preset_{reset_id}")
             custom_stake = c7.number_input("Ποσό (€)", min_value=0.0, step=0.05, format="%.2f", key=f"custom_stake_{reset_id}")
             status_sel = c8.selectbox("Κατάσταση (Συνολική)", ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"], key=f"status_{reset_id}")
@@ -1216,18 +1215,8 @@ if page == "🏠 Hub (Μήνες)":
             st.warning("Αυτός ο μήνας δεν έχει ακόμα δελτία.")
         else:
             completed_bets = m_df[m_df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο", "🟡 Cash Out", "🔵 Ακυρωμένο"])]
-            total_profit = completed_bets['Profit'].sum()
-            current_balance = m_br + total_profit
-            total_staked = completed_bets['Stake'].sum()
-            total_units_won = total_profit / m_unit if m_unit > 0 else 0.0
             
-            wl_bets = completed_bets[completed_bets['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
-            win_rate = (len(wl_bets[wl_bets['Profit'] > 0]) / len(wl_bets) * 100) if len(wl_bets) > 0 else 0
-            total_bets = len(completed_bets)
-            avg_odds = m_df['Odds'].mean()
-            
-            winning_bets = completed_bets[completed_bets['Status'] == "🟢 Κερδισμένο"]
-            
+            # --- PROGRESSION LOGIC ---
             completed_bets['DateTime'] = pd.to_datetime(completed_bets['Date'].astype(str) + ' ' + completed_bets['Time'].astype(str))
             prog_df = completed_bets.sort_values(by="DateTime").copy()
             
@@ -1236,16 +1225,29 @@ if page == "🏠 Hub (Μήνες)":
             cum_o_sum, cum_o_count = 0.0, 0
             peaks, drawdowns, current_peak = [], [], 0.0
             
+            max_win_streak, max_lose_streak = 0, 0
+            current_w, current_l = 0, 0
+            win_streak_idx, lose_streak_idx = [], []
+            curr_w_idx, curr_l_idx = [], []
+            
             for idx, row in prog_df.iterrows():
-                current_p += row['Profit']
-                if row['Status'] != "🔵 Ακυρωμένο":
+                p = row['Profit']
+                s = row['Status']
+                current_p += p
+                
+                if m_unit > 0:
+                    current_u_val = current_p / m_unit
+                else:
+                    current_u_val = 0.0
+                    
+                if s != "🔵 Ακυρωμένο":
                     current_s += row['Stake']
                     cum_o_sum += row['Odds']
                     cum_o_count += 1
-                status = row['Status']
-                if status in ["🟢 Κερδισμένο", "🔴 Χαμένο"]:
+                    
+                if s in ["🟢 Κερδισμένο", "🔴 Χαμένο"]:
                     current_wl_count += 1
-                    if status == "🟢 Κερδισμένο": current_wins += 1
+                    if s == "🟢 Κερδισμένο": current_wins += 1
                 
                 if current_p > current_peak: current_peak = current_p
                 dd = current_p - current_peak 
@@ -1257,7 +1259,18 @@ if page == "🏠 Hub (Μήνες)":
                 cum_roi.append((current_p / current_s * 100) if current_s > 0 else 0.0)
                 cum_wr.append((current_wins / current_wl_count * 100) if current_wl_count > 0 else 0.0)
                 cum_avg.append((cum_o_sum / cum_o_count) if cum_o_count > 0 else 0.0)
-                cum_u.append(current_p / m_unit if m_unit > 0 else 0.0)
+                cum_u.append(current_u_val)
+                
+                if s == "🟢 Κερδισμένο":
+                    current_w += 1; curr_w_idx.append(row['Α/Α'])
+                    current_l = 0; curr_l_idx = []
+                    if current_w > max_win_streak: max_win_streak = current_w; win_streak_idx = curr_w_idx.copy()
+                elif s == "🔴 Χαμένο":
+                    current_l += 1; curr_l_idx.append(row['Α/Α'])
+                    current_w = 0; curr_w_idx = []
+                    if current_l > max_lose_streak: max_lose_streak = current_l; lose_streak_idx = curr_l_idx.copy()
+                else: 
+                    current_w = 0; curr_w_idx = []; current_l = 0; curr_l_idx = []
 
             prog_df['Cumulative_Profit'] = cum_profit
             prog_df['Balance'] = [m_br + cp for cp in cum_profit]
@@ -1269,12 +1282,27 @@ if page == "🏠 Hub (Μήνες)":
             prog_df['Peak'] = peaks
             prog_df['Drawdown'] = drawdowns
             
+            # --- MASTER VARIABLES ---
             max_drawdown = min(drawdowns) if drawdowns else 0.0
             peak_bankroll = (m_br + max(peaks)) if peaks else m_br
+            total_profit = current_p
+            current_balance = m_br + total_profit
+            total_staked = current_s
+            total_units_won = current_p / m_unit if m_unit > 0 else 0.0
+            yield_pct = (total_profit / total_staked * 100) if total_staked > 0 else 0.0
+            win_rate = (current_wins / current_wl_count * 100) if current_wl_count > 0 else 0.0
+            avg_odds = (cum_o_sum / cum_o_count) if cum_o_count > 0 else 0.0
+            total_bets = len(completed_bets)
+            winning_bets = completed_bets[completed_bets['Status'] == "🟢 Κερδισμένο"]
+            max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
+            max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
+            
             prog_df = prog_df.sort_values(by="DateTime", ascending=False)
 
-            st.markdown("### 🏆 Στατιστικά Μήνα")
+            # --- 3-TIER MATRIX UI ---
+            st.markdown("#### 🏦 Οικονομικά (Financials)")
             col_a, col_b, col_c, col_d = st.columns(4)
+            
             st.markdown('<div class="marker-positive"></div>' if total_profit >= 0 else '<div class="marker-negative"></div>', unsafe_allow_html=True)
             if col_a.button(f"Καθαρό Κέρδος\n{total_profit:.2f} €", key="btn_prof", use_container_width=True): show_progression_dialog("profit", prog_df, df)
 
@@ -1285,22 +1313,43 @@ if page == "🏠 Hub (Μήνες)":
             st.markdown('<div class="marker-positive"></div>' if total_units_won > 0 else ('<div class="marker-negative"></div>' if total_units_won < 0 else ''), unsafe_allow_html=True)
             if col_c.button(f"Μονάδες (+/-)\n{u_sgn}{total_units_won:.1f} U", key="btn_u", use_container_width=True): show_progression_dialog("roi", prog_df, df)
 
-            st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
-            if col_d.button(f"Win Rate\n{win_rate:.1f} %", key="btn_wr", use_container_width=True): show_progression_dialog("wr", prog_df, df)
-            
+            r_sgn = "+" if yield_pct > 0 else ""
+            st.markdown('<div class="marker-positive"></div>' if yield_pct > 0 else ('<div class="marker-negative"></div>' if yield_pct < 0 else ''), unsafe_allow_html=True)
+            if col_d.button(f"Yield (ROI)\n{r_sgn}{yield_pct:.2f} %", key="btn_roi", use_container_width=True): show_progression_dialog("roi", prog_df, df)
+
+            st.markdown("#### 🎯 Αγωνιστικό Προφίλ (Performance)")
             col_e, col_f, col_g, col_h = st.columns(4)
             st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
-            if col_e.button(f"Συνολικό Ποντάρισμα\n{total_staked:.2f} €", key="btn_staked", use_container_width=True): show_bets_dialog("💰 Όλα τα Πονταρισμένα Δελτία", completed_bets, df)
+            if col_e.button(f"Win Rate\n{win_rate:.1f} %", key="btn_wr", use_container_width=True): show_progression_dialog("wr", prog_df, df)
+            
+            st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
+            if col_f.button(f"Μέση Απόδοση\n{avg_odds:.2f}", key="btn_avg_odds", use_container_width=True): show_progression_dialog("avg_odds", prog_df, df)
+            
+            st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
+            if col_g.button(f"Σύνολο Δελτίων\n{total_bets}", key="btn_all", use_container_width=True): show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets, df)
+            
+            st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
+            if col_h.button(f"Max Απόδοση\n{max_win_odds:.2f} 🎯", key="btn_max_odds", use_container_width=True): 
+                if max_win_odds_aa:
+                    st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
+                    st.session_state['auto_open_ticket'] = int(max_win_odds_aa)
+                    st.rerun()
 
+            st.markdown("#### 🎢 Διακύμανση (Variance & Streaks)")
+            col_i, col_j, col_k, col_l = st.columns(4)
             st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
-            if col_f.button(f"Max Drawdown\n{max_drawdown:.2f} € 📉", key="btn_dd", use_container_width=True): show_progression_dialog("drawdown", prog_df, df)
+            if col_i.button(f"Max Drawdown\n{max_drawdown:.2f} € 📉", key="btn_dd", use_container_width=True): show_progression_dialog("drawdown", prog_df, df)
 
             st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
-            if col_g.button(f"Κορυφή Ταμείου (ATH)\n{peak_bankroll:.2f} € 🏔️", key="btn_ath", use_container_width=True): show_progression_dialog("profit", prog_df, df)
+            if col_j.button(f"Κορυφή Ταμείου (ATH)\n{peak_bankroll:.2f} € 🏔️", key="btn_ath", use_container_width=True): show_progression_dialog("profit", prog_df, df)
 
-            st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
-            if col_h.button(f"Σύνολο Στοιχημάτων\n{total_bets}", key="btn_all", use_container_width=True): show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets, df)
+            st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
+            if col_k.button(f"Max Σερί Νικών\n{max_win_streak} 🟢", key="btn_w_streak", use_container_width=True): show_bets_dialog(f"🟢 Μέγιστο Σερί Νικών ({max_win_streak} δελτία)", df[df['Α/Α'].isin(win_streak_idx)], df)
+        
+            st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
+            if col_l.button(f"Max Σερί Ηττών\n{max_lose_streak} 🔴", key="btn_l_streak", use_container_width=True): show_bets_dialog(f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)", df[df['Α/Α'].isin(lose_streak_idx)], df)
 
+            # 📉 ΓΡΑΦΗΜΑ ΕΞΕΛΙΞΗΣ
             st.markdown("---")
             st.markdown("### 📉 Ημερήσια Εξέλιξη Ταμείου")
             df_line = prog_df.sort_values(by="DateTime").copy()
@@ -1368,18 +1417,151 @@ elif page == "🌍 All-Time Στατιστικά":
     if df.empty:
         st.warning("Δεν βρέθηκαν στοιχήματα στο Ιστορικό.")
     else:
-        completed_bets = df[df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο", "🟡 Cash Out", "🔵 Ακυρωμένο"])]
-        total_profit = completed_bets['Profit'].sum()
-        total_staked = completed_bets['Stake'].sum()
-        yield_pct = (total_profit / total_staked * 100) if total_staked > 0 else 0
-        wl_bets = completed_bets[completed_bets['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο"])]
-        win_rate = (len(wl_bets[wl_bets['Profit'] > 0]) / len(wl_bets) * 100) if len(wl_bets) > 0 else 0
+        if st.session_state.get('auto_open_ticket') is not None:
+            aa = st.session_state['auto_open_ticket']
+            st.session_state['auto_open_ticket'] = None
+            show_ticket_modal(aa, df)
+
+        completed_bets = df[df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο", "🟡 Cash Out", "🔵 Ακυρωμένο"])].copy()
         
-        c1, c2, c3 = st.columns(3)
-        c1.metric("🌍 Συνολικό Κέρδος (Lifetime)", f"{total_profit:.2f} €")
-        c2.metric("🎯 Lifetime Win Rate", f"{win_rate:.1f} %")
-        c3.metric("📈 Lifetime Yield", f"{yield_pct:.2f} %")
+        # --- ALL-TIME PROGRESSION LOGIC ---
+        completed_bets['DateTime'] = pd.to_datetime(completed_bets['Date'].astype(str) + ' ' + completed_bets['Time'].astype(str))
+        prog_df = completed_bets.sort_values(by="DateTime").copy()
         
+        all_time_start_br = sum(custom_db.get("bankrolls", {}).values())
+        
+        cum_profit, cum_stake, cum_roi, cum_wr, cum_avg, cum_u = [], [], [], [], [], []
+        current_p, current_s, current_wl_count, current_wins = 0.0, 0.0, 0, 0
+        cum_o_sum, cum_o_count = 0.0, 0
+        peaks, drawdowns, current_peak = [], [], 0.0
+        current_u = 0.0
+        
+        max_win_streak, max_lose_streak = 0, 0
+        current_w, current_l = 0, 0
+        win_streak_idx, lose_streak_idx = [], []
+        curr_w_idx, curr_l_idx = [], []
+        
+        for idx, row in prog_df.iterrows():
+            p = row['Profit']
+            s = row['Status']
+            current_p += p
+            
+            row_m_str = pd.to_datetime(row['Date']).strftime('%Y-%m')
+            row_m_br = custom_db.get("bankrolls", {}).get(row_m_str, 0.0)
+            row_u = row_m_br / 20.0 if row_m_br > 0 else 0.0
+            
+            if row_u > 0:
+                current_u += (p / row_u)
+                
+            if s != "🔵 Ακυρωμένο":
+                current_s += row['Stake']
+                cum_o_sum += row['Odds']
+                cum_o_count += 1
+                
+            if s in ["🟢 Κερδισμένο", "🔴 Χαμένο"]:
+                current_wl_count += 1
+                if s == "🟢 Κερδισμένο": current_wins += 1
+            
+            if current_p > current_peak: current_peak = current_p
+            dd = current_p - current_peak 
+            
+            peaks.append(current_peak)
+            drawdowns.append(dd)
+            cum_profit.append(current_p)
+            cum_stake.append(current_s)
+            cum_roi.append((current_p / current_s * 100) if current_s > 0 else 0.0)
+            cum_wr.append((current_wins / current_wl_count * 100) if current_wl_count > 0 else 0.0)
+            cum_avg.append((cum_o_sum / cum_o_count) if cum_o_count > 0 else 0.0)
+            cum_u.append(current_u)
+            
+            if s == "🟢 Κερδισμένο":
+                current_w += 1; curr_w_idx.append(row['Α/Α'])
+                current_l = 0; curr_l_idx = []
+                if current_w > max_win_streak: max_win_streak = current_w; win_streak_idx = curr_w_idx.copy()
+            elif s == "🔴 Χαμένο":
+                current_l += 1; curr_l_idx.append(row['Α/Α'])
+                current_w = 0; curr_w_idx = []
+                if current_l > max_lose_streak: max_lose_streak = current_l; lose_streak_idx = curr_l_idx.copy()
+            else: 
+                current_w = 0; curr_w_idx = []; current_l = 0; curr_l_idx = []
+
+        prog_df['Cumulative_Profit'] = cum_profit
+        prog_df['Balance'] = [all_time_start_br + cp for cp in cum_profit]
+        prog_df['Cumulative_Units'] = cum_u
+        prog_df['Cumulative_Stake'] = cum_stake
+        prog_df['Cumulative_ROI'] = cum_roi
+        prog_df['Cumulative_WR'] = cum_wr
+        prog_df['Cumulative_AvgOdds'] = cum_avg
+        prog_df['Peak'] = peaks
+        prog_df['Drawdown'] = drawdowns
+        
+        max_drawdown = min(drawdowns) if drawdowns else 0.0
+        peak_bankroll = (all_time_start_br + max(peaks)) if peaks else all_time_start_br
+        total_profit = current_p
+        current_balance = all_time_start_br + total_profit
+        total_staked = current_s
+        total_units_won = current_u
+        yield_pct = (total_profit / total_staked * 100) if total_staked > 0 else 0.0
+        win_rate = (current_wins / current_wl_count * 100) if current_wl_count > 0 else 0.0
+        avg_odds = (cum_o_sum / cum_o_count) if cum_o_count > 0 else 0.0
+        total_bets = len(completed_bets)
+        winning_bets = completed_bets[completed_bets['Status'] == "🟢 Κερδισμένο"]
+        max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
+        max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
+        
+        prog_df = prog_df.sort_values(by="DateTime", ascending=False)
+
+        # --- 3-TIER MATRIX UI (ALL-TIME) ---
+        st.markdown("#### 🏦 Οικονομικά (Financials)")
+        col_a, col_b, col_c, col_d = st.columns(4)
+        
+        st.markdown('<div class="marker-positive"></div>' if total_profit >= 0 else '<div class="marker-negative"></div>', unsafe_allow_html=True)
+        if col_a.button(f"Καθαρό Κέρδος\n{total_profit:.2f} €", key="btn_prof_at", use_container_width=True): show_progression_dialog("profit", prog_df, df)
+
+        st.markdown('<div class="marker-positive"></div>' if current_balance >= all_time_start_br else '<div class="marker-negative"></div>', unsafe_allow_html=True)
+        if col_b.button(f"Τρέχον Υπόλοιπο\n{current_balance:.2f} €", key="btn_bal_at", use_container_width=True): show_progression_dialog("profit", prog_df, df)
+
+        u_sgn = "+" if total_units_won >= 0 else ""
+        st.markdown('<div class="marker-positive"></div>' if total_units_won > 0 else ('<div class="marker-negative"></div>' if total_units_won < 0 else ''), unsafe_allow_html=True)
+        if col_c.button(f"Μονάδες (+/-)\n{u_sgn}{total_units_won:.1f} U", key="btn_u_at", use_container_width=True): show_progression_dialog("roi", prog_df, df)
+
+        r_sgn = "+" if yield_pct > 0 else ""
+        st.markdown('<div class="marker-positive"></div>' if yield_pct > 0 else ('<div class="marker-negative"></div>' if yield_pct < 0 else ''), unsafe_allow_html=True)
+        if col_d.button(f"Yield (ROI)\n{r_sgn}{yield_pct:.2f} %", key="btn_roi_at", use_container_width=True): show_progression_dialog("roi", prog_df, df)
+
+        st.markdown("#### 🎯 Αγωνιστικό Προφίλ (Performance)")
+        col_e, col_f, col_g, col_h = st.columns(4)
+        st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
+        if col_e.button(f"Win Rate\n{win_rate:.1f} %", key="btn_wr_at", use_container_width=True): show_progression_dialog("wr", prog_df, df)
+        
+        st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
+        if col_f.button(f"Μέση Απόδοση\n{avg_odds:.2f}", key="btn_avg_odds_at", use_container_width=True): show_progression_dialog("avg_odds", prog_df, df)
+        
+        st.markdown('<div class="marker-neutral"></div>', unsafe_allow_html=True)
+        if col_g.button(f"Σύνολο Δελτίων\n{total_bets}", key="btn_all_at", use_container_width=True): show_bets_dialog("📋 Όλα τα Διευθετημένα Δελτία", completed_bets, df)
+        
+        st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
+        if col_h.button(f"Max Απόδοση\n{max_win_odds:.2f} 🎯", key="btn_max_odds_at", use_container_width=True): 
+            if max_win_odds_aa:
+                st.session_state['redirect_to'] = "🌍 All-Time Στατιστικά"
+                st.session_state['auto_open_ticket'] = int(max_win_odds_aa)
+                st.rerun()
+
+        st.markdown("#### 🎢 Διακύμανση (Variance & Streaks)")
+        col_i, col_j, col_k, col_l = st.columns(4)
+        st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
+        if col_i.button(f"Max Drawdown\n{max_drawdown:.2f} € 📉", key="btn_dd_at", use_container_width=True): show_progression_dialog("drawdown", prog_df, df)
+
+        st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
+        if col_j.button(f"Κορυφή Ταμείου (ATH)\n{peak_bankroll:.2f} € 🏔️", key="btn_ath_at", use_container_width=True): show_progression_dialog("profit", prog_df, df)
+
+        st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
+        if col_k.button(f"Max Σερί Νικών\n{max_win_streak} 🟢", key="btn_w_streak_at", use_container_width=True): show_bets_dialog(f"🟢 Μέγιστο Σερί Νικών ({max_win_streak} δελτία)", df[df['Α/Α'].isin(win_streak_idx)], df)
+    
+        st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
+        if col_l.button(f"Max Σερί Ηττών\n{max_lose_streak} 🔴", key="btn_l_streak_at", use_container_width=True): show_bets_dialog(f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)", df[df['Α/Α'].isin(lose_streak_idx)], df)
+
+        # --- ΕΙΔΙΚΑ ΣΤΑΤΙΣΤΙΚΑ (FUN FACTS) ---
         st.markdown("---")
         st.markdown("### 🧠 Lifetime Fun Facts & Insights (Ειδικά Στατιστικά)")
         team_profits = {}
@@ -1461,28 +1643,28 @@ elif page == "🌍 All-Time Στατιστικά":
         c_ff3, c_ff4, c_ff5, c_ff6 = st.columns(4)
         
         st.markdown('<div class="marker-gold"></div>', unsafe_allow_html=True)
-        if c_ff3.button(f"🏆 Χρυσή Ομάδα\n{best_team_disp_s} (+{best_team_prof:.2f} €)" if best_team_prof > 0 else "🏆 Χρυσή Ομάδα\n-", key="btn_ff_best", use_container_width=True):
+        if c_ff3.button(f"🏆 Χρυσή Ομάδα\n{best_team_disp_s} (+{best_team_prof:.2f} €)" if best_team_prof > 0 else "🏆 Χρυσή Ομάδα\n-", key="btn_ff_best_at", use_container_width=True):
             if best_team_prof > 0:
                 team_df = completed_bets[completed_bets['Event'].astype(str).apply(normalize_greek).str.contains(best_team_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(best_team_norm, na=False)]
                 show_bets_dialog(f"🏆 Ιστορικό: Αγώνες με {best_team_disp}", team_df, df)
             else: st.toast("Δεν υπάρχει ακόμα κερδοφόρα ομάδα!", icon="⚠️")
 
         st.markdown('<div class="marker-dark"></div>', unsafe_allow_html=True)
-        if c_ff4.button(f"🧊 Μαύρη Λίστα Ομάδων\n{worst_team_disp_s} ({worst_team_prof:.2f} €)" if worst_team_prof < 0 else "🧊 Μαύρη Λίστα\n-", key="btn_ff_worst", use_container_width=True):
+        if c_ff4.button(f"🧊 Μαύρη Λίστα Ομάδων\n{worst_team_disp_s} ({worst_team_prof:.2f} €)" if worst_team_prof < 0 else "🧊 Μαύρη Λίστα\n-", key="btn_ff_worst_at", use_container_width=True):
             if worst_team_prof < 0:
                 team_df = completed_bets[completed_bets['Event'].astype(str).apply(normalize_greek).str.contains(worst_team_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(worst_team_norm, na=False)]
                 show_bets_dialog(f"🧊 Ιστορικό: Αγώνες με {worst_team_disp}", team_df, df)
             else: st.toast("Δεν υπάρχει ακόμα ζημιογόνα ομάδα!", icon="⚠️")
                 
         st.markdown('<div class="marker-player1"></div>', unsafe_allow_html=True)
-        if c_ff5.button(f"🥇 MVP Παίκτης / Ειδικό\n{best_player_disp_s} (+{best_player_prof:.2f} €)" if best_player_prof > 0 else "🥇 MVP Παίκτης\n-", key="btn_ff_pbest", use_container_width=True):
+        if c_ff5.button(f"🥇 MVP Παίκτης / Ειδικό\n{best_player_disp_s} (+{best_player_prof:.2f} €)" if best_player_prof > 0 else "🥇 MVP Παίκτης\n-", key="btn_ff_pbest_at", use_container_width=True):
             if best_player_prof > 0:
                 p_df = completed_bets[completed_bets['Market'].astype(str).apply(normalize_greek).str.contains(best_player_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(best_player_norm, na=False)]
                 show_bets_dialog(f"🥇 Ιστορικό: Στοιχήματα σε {best_player_disp}", p_df, df)
             else: st.toast("Δεν υπάρχει κερδοφόρος παίκτης!", icon="⚠️")
                 
         st.markdown('<div class="marker-player2"></div>', unsafe_allow_html=True)
-        if c_ff6.button(f"📉 Χειρότερος Παίκτης\n{worst_player_disp_s} ({worst_player_prof:.2f} €)" if worst_player_prof < 0 else "📉 Χειρότερος Παίκτης\n-", key="btn_ff_pworst", use_container_width=True):
+        if c_ff6.button(f"📉 Χειρότερος Παίκτης\n{worst_player_disp_s} ({worst_player_prof:.2f} €)" if worst_player_prof < 0 else "📉 Χειρότερος Παίκτης\n-", key="btn_ff_pworst_at", use_container_width=True):
             if worst_player_prof < 0:
                 p_df = completed_bets[completed_bets['Market'].astype(str).apply(normalize_greek).str.contains(worst_player_norm, na=False) | completed_bets['Legs_Data'].astype(str).apply(normalize_greek).str.contains(worst_player_norm, na=False)]
                 show_bets_dialog(f"📉 Ιστορικό: Στοιχήματα σε {worst_player_disp}", p_df, df)
