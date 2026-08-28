@@ -277,31 +277,6 @@ if st.session_state['show_toast']:
     st.session_state['show_toast'] = False 
 
 # ==========================================
-# 📊 CALLBACK FUNCTIONS
-# ==========================================
-def update_auto_odds(reset_id, num_legs):
-    total_odds = 1.0
-    for i in range(int(num_legs)):
-        leg_odds_key = f"leg_od_{i}_{reset_id}"
-        leg_status_key = f"leg_st_{i}_{reset_id}"
-        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
-            val = safe_float(st.session_state[leg_odds_key], 1.00)
-            stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο": total_odds *= val
-    st.session_state['auto_odds_multi'] = total_odds
-
-def update_auto_odds_edit(aa_val, num_legs):
-    total_odds = 1.0
-    for i in range(int(num_legs)):
-        leg_odds_key = f"ed_leg_od_{i}_{aa_val}"
-        leg_status_key = f"ed_leg_st_{i}_{aa_val}"
-        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
-            val = safe_float(st.session_state[leg_odds_key], 1.00)
-            stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο": total_odds *= val
-    st.session_state['auto_odds_multi'] = total_odds
-
-# ==========================================
 # ☁️ ΣΥΝΔΕΣΗ ΜΕ GOOGLE SHEETS
 # ==========================================
 @st.cache_resource
@@ -443,74 +418,30 @@ GREEK_COLUMNS = {
     "Profit": st.column_config.NumberColumn("Κέρδος / Ζημιά", format="%.2f €")
 }
 
-def find_team_match(t, norm_teams_dict):
-    m = difflib.get_close_matches(t, norm_teams_dict.keys(), n=1, cutoff=0.65)
-    if m: return norm_teams_dict[m[0]]
-    for kt in norm_teams_dict.keys():
-        if t in kt and len(t) >= 4: return norm_teams_dict[kt]
-    return t
+# ==========================================
+# 📊 CALLBACK FUNCTIONS & HELPERS
+# ==========================================
+def update_auto_odds(reset_id, num_legs):
+    total_odds = 1.0
+    for i in range(int(num_legs)):
+        leg_odds_key = f"leg_od_{i}_{reset_id}"
+        leg_status_key = f"leg_st_{i}_{reset_id}"
+        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
+            val = safe_float(st.session_state[leg_odds_key], 1.00)
+            stat = st.session_state[leg_status_key]
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
+    st.session_state['auto_odds_multi'] = total_odds
 
-def get_event_suggestions(user_text, all_events, all_teams):
-    if len(user_text) < 3: return []
-    norm_user = normalize_greek(user_text)
-    norm_events_dict = {normalize_greek(e): e for e in all_events}
-    if norm_user in norm_events_dict: return []
-    suggestions = []
-    for delim in [' - ', ' vs ', '-']:
-        if delim in user_text:
-            parts = user_text.split(delim)
-            if len(parts) == 2:
-                t1, t2 = parts[0].strip(), parts[1].strip()
-                nt1, nt2 = normalize_greek(t1), normalize_greek(t2)
-                norm_teams_dict = {normalize_greek(t): t for t in all_teams}
-                final_t1 = find_team_match(nt1, norm_teams_dict) if nt1 else t1
-                final_t2 = find_team_match(nt2, norm_teams_dict) if nt2 else t2
-                if final_t1 != t1 or final_t2 != t2:
-                    suggestions.append(f"{final_t1} {delim.strip()} {final_t2}")
-            break
-    if not suggestions:
-        full_matches = difflib.get_close_matches(norm_user, list(norm_events_dict.keys()), n=2, cutoff=0.75)
-        for fm in full_matches: suggestions.append(norm_events_dict[fm])
-    return list(dict.fromkeys(suggestions))[:3]
-
-def get_market_suggestions(user_text, all_markets):
-    if len(user_text) < 3: return []
-    norm_user = normalize_greek(user_text)
-    norm_markets_dict = {normalize_greek(m): m for m in all_markets}
-    if norm_user in norm_markets_dict: return []
-    def get_entity_prefix(text):
-        words = []
-        for w in text.split():
-            if re.search(r'\d', w) or normalize_greek(w) in ignore_words_set: break
-            words.append(w)
-        return " ".join(words)
-    user_prefix = get_entity_prefix(norm_user)
-    scored_markets = []
-    for norm_m, orig_m in norm_markets_dict.items():
-        if norm_user in norm_m:
-            scored_markets.append((orig_m, 2.0))
-            continue
-        m_prefix = get_entity_prefix(norm_m)
-        if user_prefix and m_prefix:
-            prefix_ratio = difflib.SequenceMatcher(None, user_prefix, m_prefix).ratio()
-            if prefix_ratio < 0.65: continue 
-            overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
-            scored_markets.append((orig_m, overall_ratio + prefix_ratio))
-        else:
-            overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
-            if overall_ratio > 0.75:
-                scored_markets.append((orig_m, overall_ratio))
-    scored_markets.sort(key=lambda x: x[1], reverse=True)
-    return list(dict.fromkeys([x[0] for x in scored_markets]))[:3]
-
-def render_suggestions(container, input_key, current_value, sugg_func, args):
-    if not current_value: return
-    sims = sugg_func(current_value, *args)
-    if sims and current_value not in sims:
-        container.markdown("<div style='color:#a8dadc; font-size:13px; margin-bottom:5px;'>💡 Μήπως εννοείς; (Κλικ για επιλογή)</div>", unsafe_allow_html=True)
-        for sim in sims:
-            def update_val(k=input_key, v=sim): st.session_state[k] = v
-            container.button(sim, key=f"btn_sugg_{input_key}_{sim}", on_click=update_val, use_container_width=True)
+def update_auto_odds_edit(aa_val, num_legs):
+    total_odds = 1.0
+    for i in range(int(num_legs)):
+        leg_odds_key = f"ed_leg_od_{i}_{aa_val}"
+        leg_status_key = f"ed_leg_st_{i}_{aa_val}"
+        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
+            val = safe_float(st.session_state[leg_odds_key], 1.00)
+            stat = st.session_state[leg_status_key]
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
+    st.session_state['auto_odds_multi'] = total_odds
 
 def calc_overall_status(legs_list):
     if not legs_list: return "⚪ Εκκρεμές"
@@ -520,15 +451,42 @@ def calc_overall_status(legs_list):
     elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
     else: return "🔵 Ακυρωμένο"
 
-def render_event_input(sport, key_pref, mode, container=st):
+# ==========================================
+# 🧠 SMART UI RENDERING 
+# ==========================================
+def render_event_input(sport, key_pref, mode, container=st, prefill=""):
     if mode == "✍️ Ελεύθερο Κείμενο" or sport not in SPORTS_HIERARCHY:
-        ev_str = container.text_input("Αγώνας (Ομάδες / Παίκτες):", key=f"{key_pref}_txt")
+        ev_str = container.text_input("Αγώνας (Ομάδες / Παίκτες):", value=prefill, key=f"{key_pref}_txt")
         return ev_str
     else:
+        t1_pre, t2_pre = "", ""
+        if prefill:
+            if " - " in prefill: t1_pre, t2_pre = prefill.split(" - ", 1)
+            elif " vs " in prefill: t1_pre, t2_pre = prefill.split(" vs ", 1)
+            else: t1_pre = prefill
+        t1_pre = t1_pre.strip()
+        t2_pre = t2_pre.strip()
+        
+        if t2_pre and " (" in t2_pre:
+            t2_pre = t2_pre.split(" (")[0].strip()
+            
+        guessed_lg = ""
+        for lg, tms in SPORTS_HIERARCHY[sport].items():
+            if t1_pre in tms or t2_pre in tms:
+                guessed_lg = lg
+                break
+                
         leagues = list(SPORTS_HIERARCHY[sport].keys())
         lg_opts = ["(Επίλεξε Διοργάνωση)", "➕ Νέα Διοργάνωση..."] + [f"{l} · {normalize_greek(l)}" for l in leagues]
         
-        lg_raw = container.selectbox("🏆 Διοργάνωση", lg_opts, index=0, key=f"{key_pref}_lg")
+        lg_idx = 0
+        if guessed_lg:
+            for i, opt in enumerate(lg_opts):
+                if opt.startswith(guessed_lg + " ·") or opt == guessed_lg:
+                    lg_idx = i
+                    break
+                    
+        lg_raw = container.selectbox("🏆 Διοργάνωση", lg_opts, index=lg_idx, key=f"{key_pref}_lg")
         lg = clean_selection(lg_raw)
         
         if lg in ["(Επίλεξε Διοργάνωση)", ""]: return ""
@@ -536,25 +494,39 @@ def render_event_input(sport, key_pref, mode, container=st):
             new_lg = container.text_input("Όνομα Νέας Διοργάνωσης:", key=f"{key_pref}_new_lg")
             teams = []
         elif lg == "Άλλη Διοργάνωση...":
-            return container.text_input("Αγώνας (π.χ. Ολυμπιακός - ΠΑΟΚ):", key=f"{key_pref}_man_ev")
+            return container.text_input("Αγώνας (π.χ. Ολυμπιακός - ΠΑΟΚ):", value=prefill, key=f"{key_pref}_man_ev")
         else:
             teams = SPORTS_HIERARCHY[sport][lg]
             
         t_opts = ["(Επίλεξε Ομάδα)", "➕ Νέα Ομάδα..."] + [f"{t} · {normalize_greek(t)}" for t in teams]
         
+        t1_idx = 0
+        if t1_pre:
+            for i, opt in enumerate(t_opts):
+                if opt.startswith(t1_pre + " ·") or opt == t1_pre:
+                    t1_idx = i
+                    break
+        
         c_home, c_vs, c_away = container.columns([5, 1, 5])
         
-        t1_raw = c_home.selectbox("🏠 Γηπεδούχος / P1", t_opts, index=0, key=f"{key_pref}_t1")
+        t1_raw = c_home.selectbox("🏠 Γηπεδούχος / P1", t_opts, index=t1_idx, key=f"{key_pref}_t1")
         final_t1 = clean_selection(t1_raw)
-        if final_t1 == "➕ Νέα Ομάδα...": final_t1 = c_home.text_input("Γράψε Ομάδα 1:", key=f"{key_pref}_t1_man")
+        if final_t1 == "➕ Νέα Ομάδα...": final_t1 = c_home.text_input("Γράψε Ομάδα 1:", value=t1_pre if t1_idx==0 else "", key=f"{key_pref}_t1_man")
         elif final_t1 in ["(Επίλεξε Ομάδα)", ""]: final_t1 = ""
             
         with c_vs:
             st.markdown("<div style='text-align: center; margin-top: 36px; font-weight: bold; color: #718096;'>VS</div>", unsafe_allow_html=True)
             
-        t2_raw = c_away.selectbox("✈️ Φιλοξενούμενος / P2", t_opts, index=0, key=f"{key_pref}_t2")
+        t2_idx = 0
+        if t2_pre:
+            for i, opt in enumerate(t_opts):
+                if opt.startswith(t2_pre + " ·") or opt == t2_pre:
+                    t2_idx = i
+                    break
+                    
+        t2_raw = c_away.selectbox("✈️ Φιλοξενούμενος / P2", t_opts, index=t2_idx, key=f"{key_pref}_t2")
         final_t2 = clean_selection(t2_raw)
-        if final_t2 == "➕ Νέα Ομάδα...": final_t2 = c_away.text_input("Γράψε Ομάδα 2:", key=f"{key_pref}_t2_man")
+        if final_t2 == "➕ Νέα Ομάδα...": final_t2 = c_away.text_input("Γράψε Ομάδα 2:", value=t2_pre if t2_idx==0 else "", key=f"{key_pref}_t2_man")
         elif final_t2 in ["(Επίλεξε Ομάδα)", ""]: final_t2 = ""
             
         if final_t1 and final_t2: return f"{final_t1} - {final_t2}"
@@ -565,7 +537,20 @@ def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=
         val = container.text_input("Αγορά:", value=prefill, key=f"{key_pref}_txt")
         return val
     else:
-        default_idx = 2 if prefill else 0
+        default_idx = 0
+        if prefill:
+            gen_cats = MARKET_GENERAL.get(sport, [])
+            plr_cats = MARKET_PLAYER.get(sport, [])
+            default_idx = 2
+            for c in gen_cats:
+                if prefill.startswith(c):
+                    default_idx = 0; break
+            if default_idx == 2 and " - " in prefill:
+                p_stat = prefill.split(" - ")[-1].strip()
+                for c in plr_cats:
+                    if p_stat.startswith(c):
+                        default_idx = 1; break
+                        
         market_type = container.radio("Κατηγορία Αγοράς:", ["🎯 Γενική (Match)", "👤 Ειδικό Παίκτη", "✏️ Ελεύθερο"], index=default_idx, horizontal=True, key=f"{key_pref}_type")
         
         if market_type == "✏️ Ελεύθερο":
@@ -575,15 +560,40 @@ def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=
         elif market_type == "🎯 Γενική (Match)":
             cats = MARKET_GENERAL.get(sport, [])
             if not cats: return container.text_input("Αγορά:", value=prefill, key=f"{key_pref}_gen_free")
+            
+            sel_prefill = "(Επιλογή)"
+            val_prefill = ""
+            if prefill and default_idx == 0:
+                for c in cats:
+                    if prefill.startswith(c):
+                        sel_prefill = c
+                        val_prefill = prefill.replace(c, "").replace(":", "").strip()
+                        break
+                        
             c1, c2 = container.columns([3, 2])
-            sel = c1.selectbox("Επιλογή Αγοράς:", ["(Επιλογή)"] + cats, key=f"{key_pref}_gen_sel")
+            opts = ["(Επιλογή)"] + cats
+            s_idx = opts.index(sel_prefill) if sel_prefill in opts else 0
+            sel = c1.selectbox("Επιλογή Αγοράς:", opts, index=s_idx, key=f"{key_pref}_gen_sel")
             if sel != "(Επιλογή)":
-                val = c2.text_input("Σημείο / Όριο (π.χ. Over 2.5, 1):", key=f"{key_pref}_gen_final")
+                val = c2.text_input("Σημείο / Όριο (π.χ. Over 2.5, 1):", value=val_prefill if sel == sel_prefill else "", key=f"{key_pref}_gen_final")
                 return f"{sel}: {val}" if val else sel
             return ""
             
         elif market_type == "👤 Ειδικό Παίκτη":
             cats = MARKET_PLAYER.get(sport, ["Άλλο"])
+            p_prefill = ""
+            stat_prefill = "(Επιλογή)"
+            line_prefill = ""
+            
+            if prefill and default_idx == 1 and " - " in prefill:
+                p_prefill, rest = prefill.split(" - ", 1)
+                p_prefill = p_prefill.strip()
+                for c in cats:
+                    if rest.startswith(c):
+                        stat_prefill = c
+                        line_prefill = rest.replace(c, "").replace(":", "").strip()
+                        break
+
             relevant_players = []
             teams = []
             ev_main = str(event_str).split("(")[0].strip()
@@ -606,19 +616,28 @@ def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=
             if relevant_players: p_options += ["--- ΠΑΙΚΤΕΣ ΑΓΩΝΑ ---"] + [f"{p} · {normalize_greek(p)}" for p in relevant_players]
             if all_others: p_options += ["--- ΑΛΛΟΙ ΠΑΙΚΤΕΣ ---"] + [f"{p} · {normalize_greek(p)}" for p in all_others]
             
+            p_idx = 0
+            if p_prefill:
+                for i, opt in enumerate(p_options):
+                    if opt.startswith(p_prefill + " ·") or opt == p_prefill:
+                        p_idx = i; break
+                if p_idx == 0: p_idx = 1 # Fallback to new player
+            
             c_p = container.columns(1)[0]
-            player_sel_raw = c_p.selectbox("Παίκτης:", p_options, index=0, key=f"{key_pref}_p_sel")
+            player_sel_raw = c_p.selectbox("Παίκτης:", p_options, index=p_idx, key=f"{key_pref}_p_sel")
             player_sel = clean_selection(player_sel_raw)
             
             final_player = ""
             if player_sel == "➕ Νέος Παίκτης...":
-                final_player = c_p.text_input("Όνομα Παίκτη:", key=f"{key_pref}_p_new")
+                final_player = c_p.text_input("Όνομα Παίκτη:", value=p_prefill if p_idx==1 else "", key=f"{key_pref}_p_new")
             elif player_sel and not player_sel.startswith("---") and player_sel != "(Επίλεξε Παίκτη)":
                 final_player = player_sel
                 
             c1, c2 = container.columns(2)
-            stat_sel = c1.selectbox("Στατιστικό:", ["(Επιλογή)"] + cats, key=f"{key_pref}_p_stat")
-            line_val = c2.text_input("Όριο / Σημείο (π.χ. Over 15.5):", key=f"{key_pref}_p_line")
+            stat_opts = ["(Επιλογή)"] + cats
+            st_idx = stat_opts.index(stat_prefill) if stat_prefill in stat_opts else 0
+            stat_sel = c1.selectbox("Στατιστικό:", stat_opts, index=st_idx, key=f"{key_pref}_p_stat")
+            line_val = c2.text_input("Όριο / Σημείο (π.χ. Over 15.5):", value=line_prefill if stat_sel == stat_prefill else "", key=f"{key_pref}_p_line")
             
             if final_player and stat_sel != "(Επιλογή)":
                 return f"{final_player} - {stat_sel} {line_val}".strip()
@@ -826,7 +845,7 @@ def new_bet_dialog():
     if bet_type != "Μονό":
         num_legs = st.number_input("Πόσα σημεία (ή αγώνες) έχει το δελτίο;", min_value=2, max_value=15, value=2, key=f"legs_num_{reset_id}")
     
-    st.markdown("<h5 style='color:#a8dadc; border-bottom:1px solid #1e3a5f; padding-bottom:5px; margin-top:20px;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
+    st.markdown("<h5 style='color: #a8dadc; border-bottom: 1px solid #1e3a5f; padding-bottom: 5px; margin-top: 15px;'>1. Βασικά Στοιχεία</h5>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1, 2])
     d = c1.date_input("Ημερομηνία", date.today(), format="DD/MM/YYYY", key=f"date_{reset_id}")
     t = c2.time_input("Ώρα", datetime.now().time(), step=60, key=f"time_{reset_id}")
@@ -930,7 +949,7 @@ def new_bet_dialog():
             if status_sel == "Αυτόματος Υπολογισμός ⚙️": status = calc_overall_status(legs)
             else: status = "🟡 Cash Out"
         else:
-            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=float(st.session_state.get('auto_odds_multi', 1.0)), key=f"odds_multi_{reset_id}")
+            odds = c5.number_input("Συνολική Απόδοση (Υπολογισμένη)", min_value=1.00, step=0.01, value=safe_float(st.session_state.get('auto_odds_multi', 1.0), 1.00), key=f"odds_multi_{reset_id}")
             chosen_preset = c6.selectbox("Ποντάρισμα (Στρατηγική)", STAKE_PRESETS_DYNAMIC, key=f"stake_preset_{reset_id}")
             custom_stake = c7.number_input("Ποσό (€)", min_value=0.0, step=0.05, format="%.2f", key=f"custom_stake_{reset_id}")
             status_sel = c8.selectbox("Κατάσταση (Συνολική)", ["Αυτόματος Υπολογισμός ⚙️", "🟡 Cash Out"], key=f"status_{reset_id}")
@@ -1535,7 +1554,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                     ed_sport = c3.selectbox("Άθλημα", list(SPORT_ICONS.values()), index=sport_idx, key=f"ed_sport_{selected_aa}")
                     
                     st.markdown("<br>", unsafe_allow_html=True)
-                    entry_mode_ed = st.radio("Λειτουργία Συμπλήρωσης:", ["🤖 Έξυπνος Βοηθός", "✍️ Ελεύθερο Κείμενο"], horizontal=True, index=1, key=f"ed_entry_mode_{selected_aa}")
+                    entry_mode_ed = st.radio("Λειτουργία Συμπλήρωσης:", ["🤖 Έξυπνος Βοηθός", "✍️ Ελεύθερο Κείμενο"], horizontal=True, index=0, key=f"ed_entry_mode_{selected_aa}")
                     
                     new_legs = []
                     final_ev_str, final_ma_str = "" , ""
@@ -1543,7 +1562,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                     
                     if edit_bet_type == "Μονό":
                         with st.container(border=True):
-                            final_ev_str = render_event_input(ed_sport, f"ed_ev_{selected_aa}", entry_mode_ed, st)
+                            final_ev_str = render_event_input(ed_sport, f"ed_ev_{selected_aa}", entry_mode_ed, st, prefill=e_event)
                             st.markdown("---")
                             final_ma_str = render_market_input(ed_sport, f"ed_ma_{selected_aa}", entry_mode_ed, final_ev_str, st, prefill=e_market)
                             
@@ -1552,7 +1571,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                             st.markdown("**🏟️ Κοινός Αγώνας**")
                             bb_ev = e_legs[0]['event'] if e_legs and 'event' in e_legs[0] else e_event
                             bb_ev_clean = bb_ev.split(" (")[0] if " (" in bb_ev else bb_ev
-                            final_ev_str = render_event_input(ed_sport, f"ed_bb_ev_{selected_aa}", entry_mode_ed, st)
+                            final_ev_str = render_event_input(ed_sport, f"ed_bb_ev_{selected_aa}", entry_mode_ed, st, prefill=bb_ev_clean)
                         
                         for i in range(int(edit_num_legs)):
                             with st.container(border=True):
@@ -1579,7 +1598,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                                 leg_od = safe_float(e_legs[i].get('odds', 1.50), 1.00) if i < len(e_legs) else 1.50
                                 leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
                                 
-                                l_ev_final = render_event_input(ed_sport, f"ed_pbb_ev_{i}_{selected_aa}", entry_mode_ed, st)
+                                l_ev_final = render_event_input(ed_sport, f"ed_pbb_ev_{i}_{selected_aa}", entry_mode_ed, st, prefill=leg_ev)
                                 st.markdown("---")
                                 
                                 c_ma, c_od, c_st = st.columns([4, 1, 2])
@@ -1607,15 +1626,15 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                                 leg_od = safe_float(e_legs[i].get('odds', 1.50), 1.00) if i < len(e_legs) else 1.50
                                 leg_st = e_legs[i]['status'] if i < len(e_legs) and 'status' in e_legs[i] else "⚪ Εκκρεμές"
                                 
-                                l_ev_final = render_event_input(ed_sport, f"ed_lev_{i}_{selected_aa}", entry_mode_ed, st)
+                                l_ev_final = render_event_input(ed_sport, f"ed_lev_{i}_{selected_aa}", entry_mode_ed, st, prefill=leg_ev)
                                 st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
                                 l_ma_final = render_market_input(ed_sport, f"ed_lma_{i}_{selected_aa}", entry_mode_ed, l_ev_final, st, prefill=leg_ma)
                                 st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
                                 
                                 c_od, c_st = st.columns(2)
-                                l_od_final = c_od.number_input(f"Απόδοση {i+1}", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                                l_od_final = c_od.number_input(f"Απόδοση:", min_value=1.00, step=0.01, value=leg_od, key=f"ed_leg_od_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
                                 st_idx = STATUS_LIST.index(leg_st) if leg_st in STATUS_LIST else 0
-                                l_st_final = c_st.selectbox(f"Κατάστ. {i+1}", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
+                                l_st_final = c_st.selectbox(f"Κατάστ.:", STATUS_LIST, index=st_idx, key=f"ed_leg_st_{i}_{selected_aa}", on_change=update_auto_odds_edit, args=(selected_aa, edit_num_legs))
                                 new_legs.append({"event": l_ev_final, "market": l_ma_final, "odds": l_od_final, "status": l_st_final})
                                 if l_st_final != "🔵 Ακυρωμένο": temp_odds *= l_od_final
                             
