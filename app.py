@@ -21,6 +21,7 @@ try:
 except:
     pass 
 
+# Χειροκίνητο Λεξικό για σίγουρα Ελληνικά
 GREEK_MONTHS = {
     1: "Ιανουάριος", 2: "Φεβρουάριος", 3: "Μάρτιος", 4: "Απρίλιος",
     5: "Μάιος", 6: "Ιούνιος", 7: "Ιούλιος", 8: "Αύγουστος",
@@ -85,14 +86,12 @@ def save_new_entities_to_db(sport):
         if not isinstance(val, str) or not val.strip(): continue
         val = val.strip()
         
-        # Match new leagues
         if key.endswith("_new_lg"):
             if sport not in custom_db["hierarchy"]: custom_db["hierarchy"][sport] = {}
             if val not in custom_db["hierarchy"][sport]:
                 custom_db["hierarchy"][sport][val] = []
                 changed = True
         
-        # Match new teams
         if key.endswith("_t1_man") or key.endswith("_t2_man"):
             base_key = key.rsplit("_", 2)[0]
             lg_key = f"{base_key}_lg"
@@ -113,7 +112,6 @@ def save_new_entities_to_db(sport):
                     custom_db["hierarchy"][sport][lg_name].append(val)
                     changed = True
 
-        # Match new players
         if key.endswith("_p_new"):
             if val not in custom_db["players"] and val not in all_players_global:
                 custom_db["players"].append(val)
@@ -131,10 +129,12 @@ SPORTS_HIERARCHY = {
         "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": ["Άρσεναλ", "Μάντσεστερ Σίτι", "Λίβερπουλ", "Τσέλσι", "Μάντσεστερ Γιουνάιτεντ", "Τότεναμ", "Νιούκαστλ", "Άστον Βίλα", "Έβερτον", "Μπράιτον", "Μπρέντφορντ", "Γουέστ Χαμ", "Φούλαμ", "Μπόρνμουθ", "Κρίσταλ Πάλας"],
         "🇪🇸 La Liga": ["Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Ατλέτικο Μαδρίτης", "Τζιρόνα", "Μπιλμπάο", "Σοσιεδάδ", "Βιγιαρεάλ", "Βαλένθια", "Μπέτις", "Σεβίλλη", "Θέλτα", "Μαγιόρκα", "Οσασούνα"],
         "🇮🇹 Serie A": ["Ίντερ", "Γιουβέντους", "Μίλαν", "Νάπολι", "Αταλάντα", "Ρόμα", "Λάτσιο", "Φιορεντίνα", "Τορίνο", "Μπολόνια"],
+        "🇩🇪 Bundesliga": ["Μπάγερν Μονάχου", "Ντόρτμουντ", "Λεβερκούζεν", "Λειψία", "Στουτγκάρδη", "Άιντραχτ Φρανκφούρτης", "Βόλφσμπουργκ"],
+        "🇫🇷 Ligue 1": ["Παρί Σεν Ζερμέν", "Μονακό", "Μαρσέιγ", "Λιλ", "Λυών", "Λανς"],
         "🇪🇺 Champions League": ["Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Μπάγερν Μονάχου", "Λίβερπουλ", "Μάντσεστερ Σίτι", "Άρσεναλ", "Γιουβέντους", "Λεβερκούζεν", "Παρί Σεν Ζερμέν", "Ίντερ", "Μίλαν", "Ντόρτμουντ", "Σπόρτινγκ", "Μονακό", "Άστον Βίλα"],
         "🇪🇺 Europa League": ["Ολυμπιακός", "ΠΑΟΚ", "Μάντσεστερ Γιουνάιτεντ", "Τότεναμ", "Άγιαξ", "Λάτσιο", "Ρόμα", "Μπιλμπάο", "Λυών", "Σοσιεδάδ", "Άιντραχτ", "Γαλατασαράι", "Φενέρμπαχτσε"],
         "🇪🇺 Conference League": ["Παναθηναϊκός", "Τσέλσι", "Φιορεντίνα", "Μπέτις", "Κοπεγχάγη", "Χάιντενχαϊμ", "Γάνδη", "ΑΠΟΕΛ", "Ομόνοια", "Πάφος"],
-        "Διεθνή (Εθνικές)": ["Ελλάδα", "Αγγλία", "Ισπανία", "Γαλλία", "Γερμανία", "Πορτογαλία", "Ολλανδία", "Ιταλία", "Αργεντινή", "Βραζιλία", "Βέλγιο"]
+        "🌍 Διεθνή (Εθνικές)": ["Ελλάδα", "Αγγλία", "Ισπανία", "Γαλλία", "Γερμανία", "Πορτογαλία", "Ολλανδία", "Ιταλία", "Αργεντινή", "Βραζιλία", "Βέλγιο"]
     },
     "🏀 Μπάσκετ": {
         "🇪🇺 Euroleague": ["Ολυμπιακός", "Παναθηναϊκός", "Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Μονακό", "Φενέρμπαχτσε", "Αναντολού Εφές", "Μπάγερν Μονάχου", "Ζαλγκίρις", "Ερυθρός Αστέρας", "Παρτιζάν", "Αρμάνι Μιλάνο", "Βίρτους Μπολόνια", "Μακάμπι Τελ Αβίβ", "Βιλερμπάν", "Μπασκόνια", "Άλμπα Βερολίνου", "Παρί"],
@@ -146,8 +146,8 @@ SPORTS_HIERARCHY = {
         "🇪🇺 BCL (Champions League)": ["Τενερίφη", "Ουνικάχα Μάλαγα", "Μούρθια", "Γαλατασαράι", "Καρσίγιακα", "Χάποελ Ιερουσαλήμ", "ΑΕΚ", "Περιστέρι", "Προμηθέας", "Ρίτας Βίλνιους", "Ιγκοκέα", "Ντερτόνα", "Βόννη", "Κέμνιτς"]
     },
     "🎾 Τένις": {
-        "Άνδρες (ATP)": ["Sinner", "Alcaraz", "Djokovic", "Zverev", "Medvedev", "Tsitsipas", "Rublev", "Ruud", "Dimitrov", "De Minaur", "Fritz", "Tiafoe", "Rune", "Shelton", "Hurkacz", "Paul", "Khachanov"],
-        "Γυναίκες (WTA)": ["Swiatek", "Sabalenka", "Gauff", "Rybakina", "Pegula", "Zheng", "Sakkari", "Jabeur", "Ostapenko", "Collins", "Navarro", "Paolini", "Krejcikova", "Haddad Maia", "Kasatkina"]
+        "🎾 Άνδρες (ATP)": ["Sinner", "Alcaraz", "Djokovic", "Zverev", "Medvedev", "Tsitsipas", "Rublev", "Ruud", "Dimitrov", "De Minaur", "Fritz", "Tiafoe", "Rune", "Shelton", "Hurkacz", "Paul", "Khachanov"],
+        "🎾 Γυναίκες (WTA)": ["Swiatek", "Sabalenka", "Gauff", "Rybakina", "Pegula", "Zheng", "Sakkari", "Jabeur", "Ostapenko", "Collins", "Navarro", "Paolini", "Krejcikova", "Haddad Maia", "Kasatkina"]
     }
 }
 
@@ -168,7 +168,6 @@ MARKET_GENERAL = {
     "🎾 Τένις": ["Νικητής Αγώνα", "Over/Under Games", "Χάντικαπ Games", "Ακριβές Σκορ Σετ"]
 }
 
-# ΕΝΗΜΕΡΩΣΗ ΜΕ ΤΑ ΝΕΑ ΣΥΝΔΥΑΣΤΙΚΑ COMBOS ΣΤΟ ΜΠΑΣΚΕΤ
 MARKET_PLAYER = {
     "⚽ Ποδόσφαιρο": ["Να Σκοράρει", "Πρώτος Σκόρερ", "Σουτ στην Εστία", "Κάρτα", "Ασίστ", "Τάκλιν", "Πάσες"],
     "🏀 Μπάσκετ": ["Πόντοι", "Ριμπάουντ", "Ασίστ", "Εύστοχα Τρίποντα", "Κλεψίματα", "Κοψίματα", "Λάθη", "Πόντοι + Ασίστ", "Πόντοι + Ριμπάουντ", "Ριμπάουντ + Ασίστ", "Π.Ρ.Α."],
@@ -1119,7 +1118,7 @@ if page == "📊 Dashboard & Στατιστικά":
         st.markdown('<div class="marker-negative"></div>', unsafe_allow_html=True)
         if col_j.button(f"Μέγιστο Σερί Ηττών\n{max_lose_streak} 🔴", key="btn_l_streak", use_container_width=True): 
             show_bets_dialog(f"🔴 Μέγιστο Σερί Ηττών ({max_lose_streak} δελτία)", df[df['Α/Α'].isin(lose_streak_idx)], df)
-
+        
         o_delta_str = f"\n( 🟢 +{odds_delta:.2f} )" if odds_delta and odds_delta > 0 else (f"\n( 🔴 {odds_delta:.2f} )" if odds_delta else "")
         st.markdown('<div class="marker-positive"></div>' if odds_delta and odds_delta > 0 else ('<div class="marker-negative"></div>' if odds_delta else ''), unsafe_allow_html=True)
         if col_k.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
