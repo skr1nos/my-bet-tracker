@@ -31,6 +31,7 @@ EXPECTED_COLS = ['Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'St
 DISPLAY_ORDER = ['Α/Α', 'Status', 'Date', 'Time', 'Type', 'Sport', 'Event', 'Market', 'Odds', 'Stake', 'Profit']
 
 STATUS_LIST = ["⚪ Εκκρεμές", "🟢 Κερδισμένο", "🔴 Χαμένο", "🔵 Ακυρωμένο", "🟡 Cash Out"]
+STAKE_PRESETS = [0.30, 0.15, "Χειροκίνητα..."]
 BET_TYPES = ["Μονό", "Παρολί", "Bet Builder", "Παρολί με Bet Builders"]
 
 SPORT_ICONS = {
@@ -57,7 +58,7 @@ def clean_selection(val):
     return val
 
 # ==========================================
-# 🧠 ΔΙΑΧΕΙΡΙΣΗ CUSTOM ΒΑΣΗΣ (ΟΜΑΔΕΣ, ΠΑΙΚΤΕΣ & BANKROLLS)
+# 🧠 ΔΙΑΧΕΙΡΙΣΗ CUSTOM ΒΑΣΗΣ
 # ==========================================
 def load_custom_db():
     default_db = {"hierarchy": {}, "players": [], "bankrolls": {}}
@@ -120,7 +121,7 @@ def save_new_entities_to_db(sport):
         save_custom_db(custom_db)
 
 # ==========================================
-# 🧠 ΒΑΣΙΚΗ ΒΑΣΗ ΔΕΔΟΜΕΝΩΝ 
+# 🧠 ΒΑΣΙΚΗ ΒΑΣΗ ΔΕΔΟΜΕΝΩΝ
 # ==========================================
 SPORTS_HIERARCHY = {
     "⚽ Ποδόσφαιρο": {
@@ -173,7 +174,7 @@ MARKET_PLAYER = {
 st.set_page_config(page_title="My Bet Tracker", page_icon="📈", layout="wide")
 
 # ==========================================
-# 🎨 PREMIUM UI CSS 
+# 🎨 PREMIUM UI CSS
 # ==========================================
 custom_css = """
 <style>
@@ -205,11 +206,7 @@ button[kind="secondary"] p { white-space: pre-wrap !important; font-size: 1.15re
     box-shadow: 0 10px 20px rgba(0,0,0,0.4);
     transition: all 0.3s ease;
 }
-.hub-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 30px rgba(0,0,0,0.6);
-    border-color: #4db8ff;
-}
+.hub-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.6); border-color: #4db8ff; }
 .hub-title { font-size: 22px; font-weight: 700; color: #4db8ff; margin-bottom: 15px; border-bottom: 2px solid #1e3a5f; padding-bottom: 10px;}
 .hub-stat { font-size: 14px; color: #a8dadc; text-transform: uppercase; margin-bottom: 5px; font-weight: 500;}
 .hub-val { font-size: 20px; color: #ffffff; font-weight: 700; margin-bottom: 15px;}
@@ -253,6 +250,8 @@ if 'toast_message' not in st.session_state: st.session_state['toast_message'] = 
 if 'page_sel' not in st.session_state: st.session_state['page_sel'] = "🏠 Hub (Μήνες)"
 if 'auto_odds_multi' not in st.session_state: st.session_state['auto_odds_multi'] = 1.0
 if 'selected_month' not in st.session_state: st.session_state['selected_month'] = None
+if 'last_opened_dialog_bet' not in st.session_state: st.session_state['last_opened_dialog_bet'] = None
+if 'last_opened_prog_bet' not in st.session_state: st.session_state['last_opened_prog_bet'] = None
 
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
@@ -334,8 +333,7 @@ for idx, row in df.iterrows():
                 p1, p2 = ev_main.split(delim)
                 teams.extend([p1.strip(), p2.strip()])
                 break
-        if not teams and ev_main:
-            teams.append(ev_main.strip())
+        if not teams and ev_main: teams.append(ev_main.strip())
         
         players = []
         if pd.notna(ma_str) and str(ma_str).strip() != "":
@@ -949,14 +947,32 @@ if page == "🏠 Hub (Μήνες)":
     else:
         # ----- ISOLATED MONTH VIEW -----
         sel_m = st.session_state['selected_month']
-        if st.button("🔙 Επιστροφή στο Hub"):
-            st.session_state['selected_month'] = None
-            st.rerun()
-            
-        st.title(f"📊 Dashboard: {sel_m}")
+        
+        # Check an xreiazetai na anoiksei kapoio modal
+        if st.session_state.get('auto_open_ticket') is not None:
+            aa = st.session_state['auto_open_ticket']
+            st.session_state['auto_open_ticket'] = None
+            show_ticket_modal(aa, df)
+
         m_df = df[df['MonthGroup'] == sel_m].copy()
         m_br = custom_db.get("bankrolls", {}).get(sel_m, 0.0)
         m_unit = m_br / 20.0 if m_br > 0 else 0.0
+        
+        col_back, col_space, col_edit = st.columns([2, 5, 3])
+        if col_back.button("🔙 Επιστροφή στο Hub"):
+            st.session_state['selected_month'] = None
+            st.rerun()
+            
+        with col_edit.expander("🏦 Επεξεργασία Κάβας"):
+            new_br = st.number_input("Κάβα Μήνα (€)", value=float(m_br), step=1.0)
+            if st.button("💾 Αποθήκευση", key=f"save_br_{sel_m}"):
+                db = load_custom_db()
+                if "bankrolls" not in db: db["bankrolls"] = {}
+                db["bankrolls"][sel_m] = new_br
+                save_custom_db(db)
+                st.rerun()
+                
+        st.title(f"📊 Dashboard: {sel_m}")
         
         if m_df.empty:
             st.warning("Αυτός ο μήνας δεν έχει ακόμα δελτία.")
@@ -1020,10 +1036,6 @@ if page == "🏠 Hub (Μήνες)":
             peak_bankroll = (m_br + max(peaks)) if peaks else m_br
             prog_df = prog_df.sort_values(by="DateTime", ascending=False)
 
-            max_single_profit = winning_bets['Profit'].max() if not winning_bets.empty else 0.0
-            max_win_odds = winning_bets['Odds'].max() if not winning_bets.empty else 0.0
-            max_win_odds_aa = winning_bets.loc[winning_bets['Odds'].idxmax(), 'Α/Α'] if not winning_bets.empty else None
-
             # --- ΕΜΦΑΝΙΣΗ CLICKABLE ΣΤΑΤΙΣΤΙΚΩΝ ΚΑΡΤΩΝ ---
             st.markdown("### 🏆 Στατιστικά Μήνα")
             col_a, col_b, col_c, col_d = st.columns(4)
@@ -1055,7 +1067,7 @@ if page == "🏠 Hub (Μήνες)":
 
             # 📉 ΓΡΑΦΗΜΑ ΕΞΕΛΙΞΗΣ
             st.markdown("---")
-            st.markdown("### 📉 Ημερήσια Εξέλιξη Ταμείου & Δελτία")
+            st.markdown("### 📉 Ημερήσια Εξέλιξη Ταμείου")
             df_line = prog_df.sort_values(by="DateTime").copy()
             df_line['Ημ/νια'] = pd.to_datetime(df_line['Date']).dt.strftime('%d/%m/%Y')
             df_line['Bet_Count'] = range(1, len(df_line) + 1)
@@ -1072,34 +1084,49 @@ if page == "🏠 Hub (Μήνες)":
             chart = (area + line + hover_points).properties(height=350)
             st.altair_chart(chart, use_container_width=True, theme="streamlit")
 
-            # 📋 ΗΜΕΡΗΣΙΑ ΔΕΛΤΙΑ ΜΗΝΑ
+            # 📋 ΑΝΑΛΥΤΙΚΟ ΙΣΤΟΡΙΚΟ (ΑΝΑ ΕΒΔΟΜΑΔΑ & ΗΜΕΡΑ)
+            st.markdown("---")
+            st.markdown("### 📋 Αναλυτικό Ιστορικό (Ανά Εβδομάδα)")
             m_df['JustDate'] = pd.to_datetime(m_df['Date']).dt.date
-            days = sorted(m_df['JustDate'].dropna().unique().tolist(), reverse=True)
-            for day in days:
-                day_df = m_df[m_df['JustDate'] == day]
-                day_profit = day_df['Profit'].sum()
-                day_str = f"{day.day} {GREEK_MONTHS[day.month]} {day.year}"
-                if day_profit > 0: d_emoji = "🟢"; d_prof_str = f"+{day_profit:.2f}"
-                elif day_profit < 0: d_emoji = "🔴"; d_prof_str = f"{day_profit:.2f}"
-                else: d_emoji = "⚪"; d_prof_str = f"{day_profit:.2f}"
-                    
-                with st.expander(f"{d_emoji} {day_str}  |  Ημερήσιο Κέρδος: {d_prof_str} €", expanded=False):
-                    st.markdown("<p style='color: #a8dadc; font-size: 13px; margin-bottom: 10px;'>💡 Κάνε κλικ σε οποιοδήποτε δελτίο για να δεις την αναλυτική απόδειξη.</p>", unsafe_allow_html=True)
-                    display_df = day_df.drop(columns=['MonthGroup', 'Legs_Data', 'JustDate', 'Week'], errors='ignore')[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
-                    
-                    df_key = f"df_{day.strftime('%Y%m%d')}"
-                    event = st.dataframe(display_df, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row", key=df_key)
-                    
-                    last_op_key = f"last_op_{df_key}"
-                    if event.selection.rows:
-                        sel_idx = event.selection.rows[0]
-                        sel_aa = display_df.iloc[sel_idx]['Α/Α']
+            m_df['Week'] = pd.to_datetime(m_df['Date']).dt.isocalendar().week
+            weeks = sorted(m_df['Week'].dropna().unique().tolist(), reverse=True)
+            
+            for w in weeks:
+                week_df = m_df[m_df['Week'] == w]
+                week_profit = week_df['Profit'].sum()
+                wp_emoji = "🟢" if week_profit > 0 else "🔴" if week_profit < 0 else "⚪"
+                min_w_date = week_df['JustDate'].min().strftime('%d/%m')
+                max_w_date = week_df['JustDate'].max().strftime('%d/%m')
+                
+                st.markdown(f"#### 📅 {w}η Εβδομάδα ({min_w_date} - {max_w_date}) | Ταμείο: {wp_emoji} {week_profit:.2f} €")
+                days = sorted(week_df['JustDate'].dropna().unique().tolist(), reverse=True)
+                for day in days:
+                    day_df = week_df[week_df['JustDate'] == day]
+                    day_profit = day_df['Profit'].sum()
+                    day_str = f"{day.day} {GREEK_MONTHS[day.month]} {day.year}"
+                    if day_profit > 0: d_emoji = "🟢"; d_prof_str = f"+{day_profit:.2f}"
+                    elif day_profit < 0: d_emoji = "🔴"; d_prof_str = f"{day_profit:.2f}"
+                    else: d_emoji = "⚪"; d_prof_str = f"{day_profit:.2f}"
                         
-                        if st.session_state.get(last_op_key) != sel_aa:
-                            st.session_state[last_op_key] = sel_aa
-                            show_ticket_modal(int(sel_aa), df)
-                    else:
-                        st.session_state[last_op_key] = None
+                    with st.expander(f"{d_emoji} {day_str}  |  Ημερήσιο Κέρδος: {d_prof_str} €", expanded=False):
+                        st.markdown("<p style='color: #a8dadc; font-size: 13px; margin-bottom: 10px;'>💡 Κάνε κλικ σε οποιοδήποτε δελτίο για να δεις την αναλυτική απόδειξη.</p>", unsafe_allow_html=True)
+                        display_df = day_df.drop(columns=['MonthGroup', 'Legs_Data', 'JustDate', 'Week'], errors='ignore')[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
+                        
+                        df_key = f"df_{day.strftime('%Y%m%d')}"
+                        event = st.dataframe(display_df, use_container_width=True, hide_index=True, column_config=GREEK_COLUMNS, on_select="rerun", selection_mode="single-row", key=df_key)
+                        
+                        last_op_key = f"last_op_{df_key}"
+                        if event.selection.rows:
+                            sel_idx = event.selection.rows[0]
+                            sel_aa = display_df.iloc[sel_idx]['Α/Α']
+                            
+                            if st.session_state.get(last_op_key) != sel_aa:
+                                st.session_state[last_op_key] = sel_aa
+                                st.session_state['auto_open_ticket'] = int(sel_aa)
+                                st.rerun()
+                        else:
+                            st.session_state[last_op_key] = None
+                st.markdown("<br>", unsafe_allow_html=True)
 
 elif page == "🌍 All-Time Στατιστικά":
     st.header("🌍 All-Time Στατιστικά (Lifetime)")
@@ -1249,7 +1276,7 @@ elif page == "🌍 All-Time Στατιστικά":
         else: st.info("Δεν υπάρχουν ολοκληρωμένα δελτία για ανάλυση αθλημάτων.")
 
 
-elif page == "⚡ Ανοιχτά Δελτία (Εκκρεμή)":
+elif page == "⚡ Ανοιχτά Δελτία":
     st.header("⏳ Κέντρο Διευθέτησης (Εκκρεμή Στοιχήματα)")
     
     pending_df = df[df['Status'] == "⚪ Εκκρεμές"].copy()
@@ -1279,7 +1306,7 @@ elif page == "⚡ Ανοιχτά Δελτία (Εκκρεμή)":
         
         st.info("💡 Άλλαξε την 'Κατάσταση' απευθείας στον παρακάτω πίνακα και πάτα Αποθήκευση για να τα διευθετήσεις μαζικά.")
         
-        edit_pending_df = pending_df.drop(columns=['Legs_Data'])[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
+        edit_pending_df = pending_df.drop(columns=['Legs_Data', 'MonthGroup'], errors='ignore')[DISPLAY_ORDER].sort_values(by="Α/Α", ascending=False)
         edit_pending_df['Πιθανή Επιστροφή'] = edit_pending_df['Stake'] * edit_pending_df['Odds']
         
         local_col_config = GREEK_COLUMNS.copy()
@@ -1304,7 +1331,7 @@ elif page == "⚡ Ανοιχτά Δελτία (Εκκρεμή)":
                     changes_made = True
             
             if changes_made:
-                save_df = df.drop(columns=['Α/Α'], errors='ignore')
+                save_df = df.drop(columns=['Α/Α', 'MonthGroup'], errors='ignore')
                 save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
                 save_data(save_df)
                 st.session_state['show_toast'] = True
@@ -1341,9 +1368,9 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
 
     with tab1:
         st.info("💡 Επίλεξε ένα δελτίο από τη λίστα. Θα ανοίξει η ίδια ακριβώς καρτέλα με την οποία το καταχώρησες, για να αλλάξεις εύκολα ό,τι θες!")
-        if not df.empty:
+        if not filtered_df.empty:
             edit_opts = {}
-            for idx, row in df.sort_values(by="Α/Α", ascending=False).iterrows():
+            for idx, row in filtered_df.sort_values(by="Α/Α", ascending=False).iterrows():
                 d_str = row['Date'].strftime('%d/%m/%Y') if pd.notnull(row['Date']) else ""
                 desc = f"Α/Α {row['Α/Α']} | {d_str} | {row['Type']} | {str(row['Event'])[:35]}"
                 edit_opts[desc] = row['Α/Α']
@@ -1530,7 +1557,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                     if st.button("💾 ΑΠΟΘΗΚΕΥΣΗ ΑΛΛΑΓΩΝ", type="primary", key=f"ed_save_btn_{selected_aa}", use_container_width=True):
                         if delete_check:
                             df.drop(index=real_idx, inplace=True)
-                            save_df = df.drop(columns=['Α/Α'], errors='ignore')
+                            save_df = df.drop(columns=['Α/Α', 'MonthGroup'], errors='ignore')
                             save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
                             save_data(save_df)
                             st.session_state['show_toast'] = True
@@ -1583,7 +1610,7 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                                 df.at[real_idx, 'Profit'] = profit
                                 df.at[real_idx, 'Legs_Data'] = legs_json
                                 
-                                save_df = df.drop(columns=['Α/Α'], errors='ignore')
+                                save_df = df.drop(columns=['Α/Α', 'MonthGroup'], errors='ignore')
                                 save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
                                 save_data(save_df)
                                 st.session_state['show_toast'] = True
