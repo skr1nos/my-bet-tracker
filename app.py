@@ -43,7 +43,73 @@ SPORT_ICONS = {
 }
 
 # ==========================================
-# 🧠 ΒΑΣΗ ΔΕΔΟΜΕΝΩΝ ΟΜΑΔΩΝ & ΔΙΟΡΓΑΝΩΣΕΩΝ
+# 🧠 ΔΙΑΧΕΙΡΙΣΗ CUSTOM ΒΑΣΗΣ (ΝΕΕΣ ΟΜΑΔΕΣ/ΠΑΙΚΤΕΣ)
+# ==========================================
+def load_custom_db():
+    if os.path.exists("custom_database.json"):
+        try:
+            with open("custom_database.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"hierarchy": {}, "players": []}
+
+def save_custom_db(db):
+    with open("custom_database.json", "w", encoding="utf-8") as f:
+        json.dump(db, f, ensure_ascii=False, indent=4)
+
+def save_new_entities_to_db(sport):
+    custom_db = load_custom_db()
+    changed = False
+    if "hierarchy" not in custom_db: custom_db["hierarchy"] = {}
+    if "players" not in custom_db: custom_db["players"] = []
+    
+    for key, val in st.session_state.items():
+        if not isinstance(val, str) or not val.strip():
+            continue
+        val = val.strip()
+        
+        # Match new leagues
+        if key.endswith("_new_lg"):
+            if sport not in custom_db["hierarchy"]: custom_db["hierarchy"][sport] = {}
+            if val not in custom_db["hierarchy"][sport]:
+                custom_db["hierarchy"][sport][val] = []
+                changed = True
+        
+        # Match new teams
+        if key.endswith("_t1_man") or key.endswith("_t2_man"):
+            base_key = key.rsplit("_", 2)[0]
+            lg_key = f"{base_key}_lg"
+            new_lg_key = f"{base_key}_new_lg"
+            
+            lg_name = None
+            if lg_key in st.session_state:
+                lg_val = st.session_state[lg_key]
+                if lg_val == "➕ Νέα Διοργάνωση..." and new_lg_key in st.session_state:
+                    lg_name = st.session_state[new_lg_key].strip()
+                elif lg_val and lg_val != "➕ Νέα Διοργάνωση...":
+                    lg_name = lg_val
+                    
+            if lg_name:
+                if sport not in custom_db["hierarchy"]: custom_db["hierarchy"][sport] = {}
+                if lg_name not in custom_db["hierarchy"][sport]: custom_db["hierarchy"][sport][lg_name] = []
+                
+                existing_teams = SPORTS_HIERARCHY.get(sport, {}).get(lg_name, [])
+                if val not in custom_db["hierarchy"][sport][lg_name] and val not in existing_teams:
+                    custom_db["hierarchy"][sport][lg_name].append(val)
+                    changed = True
+
+        # Match new players
+        if key.endswith("_p_new"):
+            if val not in custom_db["players"] and val not in all_players_global:
+                custom_db["players"].append(val)
+                changed = True
+
+    if changed:
+        save_custom_db(custom_db)
+
+# ==========================================
+# 🧠 ΒΑΣΙΚΗ ΒΑΣΗ ΔΕΔΟΜΕΝΩΝ (ΟΜΑΔΕΣ & ΔΙΟΡΓΑΝΩΣΕΩΝ)
 # ==========================================
 SPORTS_HIERARCHY = {
     "⚽ Ποδόσφαιρο": {
@@ -53,8 +119,7 @@ SPORTS_HIERARCHY = {
         "🇮🇹 Serie A": ["Ίντερ", "Γιουβέντους", "Μίλαν", "Νάπολι", "Αταλάντα", "Ρόμα", "Λάτσιο", "Φιορεντίνα", "Τορίνο", "Μπολόνια"],
         "🇪🇺 Champions League": ["Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Μπάγερν Μονάχου", "Λίβερπουλ", "Μάντσεστερ Σίτι", "Άρσεναλ", "Γιουβέντους", "Λεβερκούζεν", "Παρί Σεν Ζερμέν", "Ίντερ", "Μίλαν", "Ντόρτμουντ", "Σπόρτινγκ", "Μονακό", "Άστον Βίλα"],
         "🇪🇺 Europa / Conference": ["Ολυμπιακός", "ΠΑΟΚ", "Παναθηναϊκός", "Μάντσεστερ Γιουνάιτεντ", "Τότεναμ", "Άγιαξ", "Λάτσιο", "Ρόμα", "Μπιλμπάο", "Λυών", "Σοσιεδάδ", "Άιντραχτ", "Γαλατασαράι", "Φενέρμπαχτσε"],
-        "Διεθνή (Εθνικές)": ["Ελλάδα", "Αγγλία", "Ισπανία", "Γαλλία", "Γερμανία", "Πορτογαλία", "Ολλανδία", "Ιταλία", "Αργεντινή", "Βραζιλία", "Βέλγιο"],
-        "Άλλη Διοργάνωση...": []
+        "Διεθνή (Εθνικές)": ["Ελλάδα", "Αγγλία", "Ισπανία", "Γαλλία", "Γερμανία", "Πορτογαλία", "Ολλανδία", "Ιταλία", "Αργεντινή", "Βραζιλία", "Βέλγιο"]
     },
     "🏀 Μπάσκετ": {
         "🇪🇺 Euroleague": ["Ολυμπιακός", "Παναθηναϊκός", "Ρεάλ Μαδρίτης", "Μπαρτσελόνα", "Μονακό", "Φενέρμπαχτσε", "Αναντολού Εφές", "Μπάγερν Μονάχου", "Ζαλγκίρις", "Ερυθρός Αστέρας", "Παρτιζάν", "Αρμάνι Μιλάνο", "Βίρτους Μπολόνια", "Μακάμπι Τελ Αβίβ", "Βιλερμπάν", "Μπασκόνια", "Άλμπα Βερολίνου", "Παρί"],
@@ -63,15 +128,24 @@ SPORTS_HIERARCHY = {
         "🇺🇸 WNBA": ["Λας Βέγκας Έισις (Aces)", "Νιου Γιορκ Λίμπερτι (Liberty)", "Κονέκτικατ Σαν (Sun)", "Μινεσότα Λινξ (Lynx)", "Σιάτλ Στορμ (Storm)", "Ιντιάνα Φίβερ (Fever)", "Φοίνιξ Μέρκιουρι (Mercury)", "Ατλάντα Ντριμ (Dream)", "Σικάγο Σκάι (Sky)", "Λος Άντζελες Σπαρκς (Sparks)", "Ντάλας Γουίνγκς (Wings)", "Ουάσινγκτον Μίστικς (Mystics)", "Γκόλντεν Στέιτ Βαλκίρις (Valkyries)"],
         "🌍 Εθνικές (FIBA / Προκριματικά)": ["Ελλάδα", "ΗΠΑ", "Σερβία", "Γερμανία", "Γαλλία", "Καναδάς", "Ισπανία", "Αυστραλία", "Λιθουανία", "Ιταλία", "Λετονία", "Σλοβενία", "Πουέρτο Ρίκο", "Βραζιλία", "Τουρκία", "Μαυροβούνιο", "Μπαχάμες", "Γεωργία", "Φινλανδία", "Νέα Ζηλανδία"],
         "🇪🇺 Eurocup": ["Χάποελ Τελ Αβίβ", "Μπανταλόνα", "Γκραν Κανάρια", "Βαλένθια", "Μπεσίκτας", "Τουρκ Τέλεκομ", "Μπουργκ", "Τσεντεβίτα", "Άρης", "Τρέντο", "Ουλμ", "Κλουζ", "Γουλβς"],
-        "🇪🇺 BCL (Champions League)": ["Τενερίφη", "Ουνικάχα Μάλαγα", "Μούρθια", "Γαλατασαράι", "Καρσίγιακα", "Χάποελ Ιερουσαλήμ", "ΑΕΚ", "Περιστέρι", "Προμηθέας", "Ρίτας Βίλνιους", "Ιγκοκέα", "Ντερτόνα", "Βόννη", "Κέμνιτς"],
-        "Άλλη Διοργάνωση...": []
+        "🇪🇺 BCL (Champions League)": ["Τενερίφη", "Ουνικάχα Μάλαγα", "Μούρθια", "Γαλατασαράι", "Καρσίγιακα", "Χάποελ Ιερουσαλήμ", "ΑΕΚ", "Περιστέρι", "Προμηθέας", "Ρίτας Βίλνιους", "Ιγκοκέα", "Ντερτόνα", "Βόννη", "Κέμνιτς"]
     },
     "🎾 Τένις": {
         "Άνδρες (ATP)": ["Sinner", "Alcaraz", "Djokovic", "Zverev", "Medvedev", "Tsitsipas", "Rublev", "Ruud", "Dimitrov", "De Minaur", "Fritz", "Tiafoe", "Rune", "Shelton", "Hurkacz", "Paul", "Khachanov"],
-        "Γυναίκες (WTA)": ["Swiatek", "Sabalenka", "Gauff", "Rybakina", "Pegula", "Zheng", "Sakkari", "Jabeur", "Ostapenko", "Collins", "Navarro", "Paolini", "Krejcikova", "Haddad Maia", "Kasatkina"],
-        "Άλλη Διοργάνωση...": []
+        "Γυναίκες (WTA)": ["Swiatek", "Sabalenka", "Gauff", "Rybakina", "Pegula", "Zheng", "Sakkari", "Jabeur", "Ostapenko", "Collins", "Navarro", "Paolini", "Krejcikova", "Haddad Maia", "Kasatkina"]
     }
 }
+
+# ΕΝΣΩΜΑΤΩΣΗ ΤΩΝ CUSTOM ΔΕΔΟΜΕΝΩΝ ΑΠΟ ΤΟ JSON
+custom_db = load_custom_db()
+for c_sport, c_leagues in custom_db.get("hierarchy", {}).items():
+    if c_sport not in SPORTS_HIERARCHY: SPORTS_HIERARCHY[c_sport] = {}
+    for c_league, c_teams in c_leagues.items():
+        if c_league not in SPORTS_HIERARCHY[c_sport]:
+            SPORTS_HIERARCHY[c_sport][c_league] = []
+        for team in c_teams:
+            if team not in SPORTS_HIERARCHY[c_sport][c_league]:
+                SPORTS_HIERARCHY[c_sport][c_league].append(team)
 
 MARKET_GENERAL = {
     "⚽ Ποδόσφαιρο": ["Τελικό Αποτέλεσμα (1X2)", "Over/Under Γκολ", "Goal/Goal ή No Goal", "Διπλή Ευκαιρία", "Ημίχρονο/Τελικό", "Κόρνερ Match", "Κάρτες Match"],
@@ -138,7 +212,6 @@ div[role="radiogroup"] > label { background-color: #16263b !important; padding: 
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# Αρχικοποίηση State
 if 'form_reset_counter' not in st.session_state: st.session_state['form_reset_counter'] = 0
 if 'show_toast' not in st.session_state: st.session_state['show_toast'] = False
 if 'toast_message' not in st.session_state: st.session_state['toast_message'] = ""
@@ -153,6 +226,31 @@ if st.session_state['redirect_to']:
 if st.session_state['show_toast']:
     st.toast(st.session_state['toast_message'], icon="✅")
     st.session_state['show_toast'] = False 
+
+# ==========================================
+# 📊 CALLBACK FUNCTIONS
+# ==========================================
+def update_auto_odds(reset_id, num_legs):
+    total_odds = 1.0
+    for i in range(int(num_legs)):
+        leg_odds_key = f"leg_od_{i}_{reset_id}"
+        leg_status_key = f"leg_st_{i}_{reset_id}"
+        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
+            val = float(st.session_state[leg_odds_key])
+            stat = st.session_state[leg_status_key]
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
+    st.session_state['auto_odds_multi'] = total_odds
+
+def update_auto_odds_edit(aa_val, num_legs):
+    total_odds = 1.0
+    for i in range(int(num_legs)):
+        leg_odds_key = f"ed_leg_od_{i}_{aa_val}"
+        leg_status_key = f"ed_leg_st_{i}_{aa_val}"
+        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
+            val = float(st.session_state[leg_odds_key])
+            stat = st.session_state[leg_status_key]
+            if stat != "🔵 Ακυρωμένο": total_odds *= val
+    st.session_state['auto_odds_multi'] = total_odds
 
 # ==========================================
 # ☁️ ΣΥΝΔΕΣΗ ΜΕ GOOGLE SHEETS
@@ -229,8 +327,7 @@ for idx, row in df.iterrows():
                 p1, p2 = ev_main.split(delim)
                 teams.extend([p1.strip(), p2.strip()])
                 break
-        if not teams and ev_main:
-            teams.append(ev_main.strip())
+        if not teams and ev_main: teams.append(ev_main.strip())
         
         players = []
         if pd.notna(ma_str) and str(ma_str).strip() != "":
@@ -251,17 +348,16 @@ for idx, row in df.iterrows():
                 team_rosters[t].add(p)
                 all_players_global.add(p)
 
-    if row['Type'] == "Μονό":
-        map_players(row['Event'], row['Market'])
+    if row['Type'] == "Μονό": map_players(row['Event'], row['Market'])
     else:
         legs_str = row['Legs_Data']
         if pd.notna(legs_str) and legs_str.strip():
             try:
-                for leg in json.loads(legs_str):
-                    map_players(leg.get('event', row['Event']), leg.get('market', ''))
+                for leg in json.loads(legs_str): map_players(leg.get('event', row['Event']), leg.get('market', ''))
             except: pass
 
-# Helper variables for old functions
+for p in custom_db.get("players", []): all_players_global.add(p)
+
 all_events_set = set()
 all_markets_set = set()
 for ev in df['Event'].dropna():
@@ -296,51 +392,118 @@ GREEK_COLUMNS = {
     "Profit": st.column_config.NumberColumn("Κέρδος / Ζημιά", format="%.2f €")
 }
 
-# ==========================================
-# 📊 CALLBACK FUNCTIONS
-# ==========================================
-def update_auto_odds(reset_id, num_legs):
-    total_odds = 1.0
-    for i in range(int(num_legs)):
-        leg_odds_key = f"leg_od_{i}_{reset_id}"
-        leg_status_key = f"leg_st_{i}_{reset_id}"
-        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
-            val = float(st.session_state[leg_odds_key])
-            stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο": total_odds *= val
-    st.session_state['auto_odds_multi'] = total_odds
+def normalize_greek(text):
+    if not text: return ""
+    text = ''.join(c for c in unicodedata.normalize('NFD', str(text)) if unicodedata.category(c) != 'Mn')
+    return text.lower().strip()
 
-def update_auto_odds_edit(aa_val, num_legs):
-    total_odds = 1.0
-    for i in range(int(num_legs)):
-        leg_odds_key = f"ed_leg_od_{i}_{aa_val}"
-        leg_status_key = f"ed_leg_st_{i}_{aa_val}"
-        if leg_odds_key in st.session_state and leg_status_key in st.session_state:
-            val = float(st.session_state[leg_odds_key])
-            stat = st.session_state[leg_status_key]
-            if stat != "🔵 Ακυρωμένο": total_odds *= val
-    st.session_state['auto_odds_multi'] = total_odds
+def find_team_match(t, norm_teams_dict):
+    m = difflib.get_close_matches(t, norm_teams_dict.keys(), n=1, cutoff=0.65)
+    if m: return norm_teams_dict[m[0]]
+    for kt in norm_teams_dict.keys():
+        if t in kt and len(t) >= 4: return norm_teams_dict[kt]
+    return t
 
-# ==========================================
-# 🧠 ΕΞΥΠΝΟΣ ΒΟΗΘΟΣ (ΟΜΑΔΕΣ & ΑΓΟΡΕΣ) 
-# ==========================================
+def get_event_suggestions(user_text, all_events, all_teams):
+    if len(user_text) < 3: return []
+    norm_user = normalize_greek(user_text)
+    if norm_user in [normalize_greek(e) for e in all_events]: return []
+    suggestions = []
+    for delim in [' - ', ' vs ', '-']:
+        if delim in user_text:
+            parts = user_text.split(delim)
+            if len(parts) == 2:
+                t1, t2 = parts[0].strip(), parts[1].strip()
+                nt1, nt2 = normalize_greek(t1), normalize_greek(t2)
+                norm_teams_dict = {normalize_greek(t): t for t in all_teams}
+                final_t1 = find_team_match(nt1, norm_teams_dict) if nt1 else t1
+                final_t2 = find_team_match(nt2, norm_teams_dict) if nt2 else t2
+                if final_t1 != t1 or final_t2 != t2:
+                    suggestions.append(f"{final_t1} {delim.strip()} {final_t2}")
+            break
+    if not suggestions:
+        full_matches = difflib.get_close_matches(norm_user, [normalize_greek(e) for e in all_events], n=2, cutoff=0.75)
+        for fm in full_matches:
+            for ev in all_events:
+                if normalize_greek(ev) == fm:
+                    suggestions.append(ev); break
+    return list(dict.fromkeys(suggestions))[:3]
+
+def get_market_suggestions(user_text, all_markets):
+    if len(user_text) < 3: return []
+    norm_user = normalize_greek(user_text)
+    if norm_user in [normalize_greek(m) for m in all_markets]: return []
+    ignore_break_words = {'over', 'under', 'ov', 'un', 'o', 'u', 'ποντοι', 'ριμπαουντ', 'ασιστ', 'ασσιστ', 'τριποντα', 'γκολ', 'καρτες', 'σουτ', 'φαουλ', 'νικη', 'ισοπαλια', 'ηττα'}
+    def get_entity_prefix(text):
+        words = []
+        for w in text.split():
+            if re.search(r'\d', w) or w in ignore_break_words: break
+            words.append(w)
+        return " ".join(words)
+    user_prefix = get_entity_prefix(norm_user)
+    scored_markets = []
+    for m in all_markets:
+        norm_m = normalize_greek(m)
+        if norm_user in norm_m:
+            scored_markets.append((m, 2.0))
+            continue
+        m_prefix = get_entity_prefix(norm_m)
+        if user_prefix and m_prefix:
+            prefix_ratio = difflib.SequenceMatcher(None, user_prefix, m_prefix).ratio()
+            if prefix_ratio < 0.65: continue 
+            overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
+            scored_markets.append((m, overall_ratio + prefix_ratio))
+        else:
+            overall_ratio = difflib.SequenceMatcher(None, norm_user, norm_m).ratio()
+            if overall_ratio > 0.75:
+                scored_markets.append((m, overall_ratio))
+    scored_markets.sort(key=lambda x: x[1], reverse=True)
+    return list(dict.fromkeys([x[0] for x in scored_markets]))[:3]
+
+def render_suggestions(container, input_key, current_value, sugg_func, args):
+    if not current_value: return
+    sims = sugg_func(current_value, *args)
+    if sims and current_value not in sims:
+        container.markdown("<div style='color:#a8dadc; font-size:13px; margin-bottom:5px;'>💡 Μήπως εννοείς; (Κλικ για επιλογή)</div>", unsafe_allow_html=True)
+        for sim in sims:
+            def update_val(k=input_key, v=sim): st.session_state[k] = v
+            container.button(sim, key=f"btn_sugg_{input_key}_{sim}", on_click=update_val, use_container_width=True)
+
+def calc_overall_status(legs_list):
+    if not legs_list: return "⚪ Εκκρεμές"
+    statuses = [l.get('status', "⚪ Εκκρεμές") for l in legs_list]
+    if "🔴 Χαμένο" in statuses: return "🔴 Χαμένο"
+    elif "⚪ Εκκρεμές" in statuses: return "⚪ Εκκρεμές"
+    elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
+    else: return "🔵 Ακυρωμένο"
+
 def render_event_input(sport, key_pref, mode, container=st):
     if mode == "✍️ Ελεύθερο Κείμενο" or sport not in SPORTS_HIERARCHY:
         ev_str = container.text_input("Αγώνας (Ομάδες / Παίκτες):", key=f"{key_pref}_txt")
         return ev_str
     else:
-        leagues = list(SPORTS_HIERARCHY[sport].keys())
-        lg = container.selectbox("🏆 Διοργάνωση", leagues, key=f"{key_pref}_lg")
-        if lg == "Άλλη Διοργάνωση...":
-            return container.text_input("Αγώνας (π.χ. Ολυμπιακός - ΠΑΟΚ):", key=f"{key_pref}_man_ev")
+        leagues = list(SPORTS_HIERARCHY[sport].keys()) + ["➕ Νέα Διοργάνωση..."]
+        lg_col, t1_col, t2_col = container.columns([1.5, 2, 2])
+        lg = lg_col.selectbox("🏆 Διοργάνωση", leagues, key=f"{key_pref}_lg")
+        
+        if lg == "➕ Νέα Διοργάνωση...":
+            new_lg = lg_col.text_input("Όνομα Νέας Διοργάνωσης:", key=f"{key_pref}_new_lg")
+            teams = []
+        elif lg == "Άλλη Διοργάνωση...":
+            return t1_col.text_input("Αγώνας (π.χ. Ολυμπιακός - ΠΑΟΚ):", key=f"{key_pref}_man_ev")
         else:
             teams = SPORTS_HIERARCHY[sport][lg]
-            t1 = container.selectbox("🏠 Γηπεδούχος / P1", teams + ["✏️ Άλλη..."], key=f"{key_pref}_t1")
-            if t1 == "✏️ Άλλη...": t1 = container.text_input("Γράψε Ομάδα 1:", key=f"{key_pref}_t1_man")
-            t2 = container.selectbox("✈️ Φιλοξενούμενος / P2", teams + ["✏️ Άλλη..."], key=f"{key_pref}_t2")
-            if t2 == "✏️ Άλλη...": t2 = container.text_input("Γράψε Ομάδα 2:", key=f"{key_pref}_t2_man")
-            if t1 and t2: return f"{t1} - {t2}"
-            return ""
+            
+        t1 = t1_col.selectbox("🏠 Γηπεδούχος / P1", teams + ["➕ Νέα Ομάδα..."], key=f"{key_pref}_t1")
+        final_t1 = t1
+        if t1 == "➕ Νέα Ομάδα...": final_t1 = t1_col.text_input("Γράψε Ομάδα 1:", key=f"{key_pref}_t1_man")
+            
+        t2 = t2_col.selectbox("✈️ Φιλοξενούμενος / P2", teams + ["➕ Νέα Ομάδα..."], key=f"{key_pref}_t2")
+        final_t2 = t2
+        if t2 == "➕ Νέα Ομάδα...": final_t2 = t2_col.text_input("Γράψε Ομάδα 2:", key=f"{key_pref}_t2_man")
+            
+        if final_t1 and final_t2: return f"{final_t1} - {final_t2}"
+        return ""
 
 def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=""):
     if mode == "✍️ Ελεύθερο Κείμενο" or (sport not in MARKET_GENERAL and sport not in MARKET_PLAYER):
@@ -365,8 +528,6 @@ def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=
             
         elif market_type == "👤 Ειδικό Παίκτη":
             cats = MARKET_PLAYER.get(sport, ["Άλλο"])
-            
-            # 🧠 Smart Player Lookup based on Event Memory!
             relevant_players = []
             teams = []
             ev_main = str(event_str).split("(")[0].strip()
@@ -402,14 +563,6 @@ def render_market_input(sport, key_pref, mode, event_str, container=st, prefill=
             if final_player and stat_sel != "(Επιλογή)":
                 return f"{final_player} - {stat_sel} {line_val}".strip()
             return ""
-
-def calc_overall_status(legs_list):
-    if not legs_list: return "⚪ Εκκρεμές"
-    statuses = [l.get('status', "⚪ Εκκρεμές") for l in legs_list]
-    if "🔴 Χαμένο" in statuses: return "🔴 Χαμένο"
-    elif "⚪ Εκκρεμές" in statuses: return "⚪ Εκκρεμές"
-    elif "🟢 Κερδισμένο" in statuses: return "🟢 Κερδισμένο"
-    else: return "🔵 Ακυρωμένο"
 
 # ==========================================
 # 🧾 PREMIUM DIGITAL RECEIPT
@@ -616,7 +769,7 @@ def new_bet_dialog():
             l_ev = render_event_input(selected_sport_input, f"pbb_ev_{i}_{reset_id}", entry_mode, st)
             c_ma, c_od, c_st = st.columns([4, 1, 2])
             l_ma_key = f"pbb_ma_{i}_{reset_id}"
-            l_ma = c_ma.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", height=68, key=l_ma_key, placeholder="π.χ.\n1 & Over 2.5\nVezenkov Over Πόντων: 15.5")
+            l_ma = c_ma.text_area(f"Επιλογές Bet Builder (Μία ανά γραμμή):", height=68, key=l_ma_key, placeholder="π.χ.\n1 & Over 2.5\nVezenkov - Πόντοι Over 15.5")
             l_od = c_od.number_input(f"Απόδοση:", min_value=1.00, step=0.01, value=1.50, key=f"leg_od_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
             l_st = c_st.selectbox(f"Κατάσταση:", STATUS_LIST, key=f"leg_st_{i}_{reset_id}", on_change=update_auto_odds, args=(reset_id, num_legs))
             st.markdown("</div>", unsafe_allow_html=True)
@@ -705,6 +858,7 @@ def new_bet_dialog():
             market_str = " | ".join(market_parts)
         
         try:
+           save_new_entities_to_db(selected_sport_input)
            new_data = pd.DataFrame([{
                'Date': d, 'Time': t_string, 'Type': bet_type, 'Sport': selected_sport_input, 'Event': event_str, 'Market': market_str, 'Odds': odds, 'Stake': stake, 'Status': status, 'Profit': profit, 'Legs_Data': legs_json
            }])
@@ -885,7 +1039,6 @@ if page == "📊 Dashboard & Στατιστικά":
                 current_w = 0; curr_w_idx = []; current_l = 0; curr_l_idx = []
 
         st.markdown("### 🏆 Στατιστικά Ταμείου & Money Management")
-        
         col_a, col_b, col_c, col_d = st.columns(4)
         p_delta_str = f"\n( Κέρδος: 🟢 +{profit_delta:.2f} € )" if profit_delta and profit_delta > 0 else (f"\n( Ζημιά: 🔴 {profit_delta:.2f} € )" if profit_delta else "")
         st.markdown('<div class="marker-positive"></div>' if total_profit >= 0 else '<div class="marker-negative"></div>', unsafe_allow_html=True)
@@ -936,7 +1089,7 @@ if page == "📊 Dashboard & Στατιστικά":
         st.markdown('<div class="marker-positive"></div>' if odds_delta and odds_delta > 0 else ('<div class="marker-negative"></div>' if odds_delta else ''), unsafe_allow_html=True)
         if col_k.button(f"Μέση Απόδοση\n{avg_odds:.2f}{o_delta_str}", key="btn_avg_odds", use_container_width=True):
             show_progression_dialog("avg_odds", prog_df, df)
-        
+
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
         if col_l.button(f"Μέγιστη Απόδοση Δελτίου\n{max_win_odds:.2f} 🎯", key="btn_max_odds", use_container_width=True): 
             if max_win_odds_aa:
@@ -1589,25 +1742,29 @@ elif page == "⚙️ Διαχείριση Ιστορικού":
                                     market_parts.append(f"{emoji} {l['market']} ({float(l['odds']):.2f})")
                                 final_ma_str = " | ".join(market_parts)
                             
-                            df.at[real_idx, 'Date'] = ed_d
-                            df.at[real_idx, 'Time'] = t_string
-                            df.at[real_idx, 'Type'] = edit_bet_type
-                            df.at[real_idx, 'Sport'] = ed_sport
-                            df.at[real_idx, 'Event'] = final_ev_str
-                            df.at[real_idx, 'Market'] = final_ma_str
-                            df.at[real_idx, 'Odds'] = ed_odds
-                            df.at[real_idx, 'Stake'] = stake
-                            df.at[real_idx, 'Status'] = ed_status
-                            df.at[real_idx, 'Profit'] = profit
-                            df.at[real_idx, 'Legs_Data'] = legs_json
-                            
-                            save_df = df.drop(columns=['Α/Α'], errors='ignore')
-                            save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
-                            save_data(save_df)
-                            st.session_state['show_toast'] = True
-                            st.session_state['toast_message'] = "Οι αλλαγές αποθηκεύτηκαν!"
-                            st.session_state['auto_odds_multi'] = 1.0
-                            st.rerun()
+                            try:
+                                save_new_entities_to_db(ed_sport)
+                                df.at[real_idx, 'Date'] = ed_d
+                                df.at[real_idx, 'Time'] = t_string
+                                df.at[real_idx, 'Type'] = edit_bet_type
+                                df.at[real_idx, 'Sport'] = ed_sport
+                                df.at[real_idx, 'Event'] = final_ev_str
+                                df.at[real_idx, 'Market'] = final_ma_str
+                                df.at[real_idx, 'Odds'] = ed_odds
+                                df.at[real_idx, 'Stake'] = stake
+                                df.at[real_idx, 'Status'] = ed_status
+                                df.at[real_idx, 'Profit'] = profit
+                                df.at[real_idx, 'Legs_Data'] = legs_json
+                                
+                                save_df = df.drop(columns=['Α/Α'], errors='ignore')
+                                save_df['Time'] = pd.to_datetime(save_df['Time'].astype(str), errors='coerce').dt.strftime('%H:%M').fillna('00:00')
+                                save_data(save_df)
+                                st.session_state['show_toast'] = True
+                                st.session_state['toast_message'] = "Οι αλλαγές αποθηκεύτηκαν!"
+                                st.session_state['auto_odds_multi'] = 1.0
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Υπήρξε πρόβλημα: {e}")
 
     with tab2:
         st.info("💡 Αλλάξτε κατευθείαν τις τιμές στον πίνακα και πατήστε αποθήκευση.")
