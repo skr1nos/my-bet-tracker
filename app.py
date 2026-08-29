@@ -255,10 +255,6 @@ div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="st
 div[data-testid="stElementContainer"]:has(.marker-player1) + div[data-testid="stElementContainer"] button p { color: #c084fc !important; font-weight: 600 !important; }
 div[data-testid="stElementContainer"]:has(.marker-player2) + div[data-testid="stElementContainer"] button { border: 1px solid #f472b6 !important; background-color: rgba(244, 114, 182, 0.05) !important; }
 div[data-testid="stElementContainer"]:has(.marker-player2) + div[data-testid="stElementContainer"] button p { color: #f472b6 !important; font-weight: 600 !important; }
-div[data-testid="stElementContainer"]:has(.fab-marker) { display: none !important; }
-div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] { position: fixed !important; bottom: 30px !important; right: 30px !important; z-index: 999999 !important; width: auto !important; }
-div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button { border-radius: 50px !important; padding: 15px 35px !important; background: linear-gradient(135deg, #0284c7, #10b981) !important; border: none !important; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4) !important; }
-div[data-testid="stElementContainer"]:has(.fab-marker) + div[data-testid="stElementContainer"] button p { color: white !important; font-size: 16px !important; font-weight: bold !important; }
 button[data-baseweb="tab"] { background-color: transparent !important; color: #a8dadc !important; font-family: 'Poppins', sans-serif !important; font-weight: 500 !important; }
 button[data-baseweb="tab"][aria-selected="true"] { color: #4db8ff !important; border-bottom: 2px solid #4db8ff !important; }
 hr { border-color: #1e3a5f !important; margin: 1.5em 0 !important; }
@@ -426,10 +422,6 @@ all_events = sorted(list(all_events_set))
 all_markets = sorted(list(all_markets_set))
 all_teams_set = set(team_rosters.keys())
 all_teams = sorted(list(all_teams_set))
-
-global_avg_odds = df['Odds'].mean()
-if pd.isna(global_avg_odds) or global_avg_odds < 1.01: global_avg_odds = 1.50
-else: global_avg_odds = float(global_avg_odds)
 
 dynamic_sports = list(SPORT_ICONS.values())
 for s in df['Sport'].dropna().unique().tolist():
@@ -1106,17 +1098,63 @@ def new_bet_dialog():
            st.error(f"❌ Υπήρξε πρόβλημα: {e}")
 
 # ==========================================
-# 🗂️ ΠΛΟΗΓΗΣΗ (SIDEBAR)
+# 🗂️ ΠΛΟΗΓΗΣΗ (SIDEBAR - UTILITY BELT)
 # ==========================================
 st.sidebar.markdown("<div class='sidebar-header'>🚀 ΠΛΟΗΓΗΣΗ</div>", unsafe_allow_html=True)
 page = st.sidebar.radio("", ["🏠 Hub (Μήνες)", "🌍 All-Time Στατιστικά", "⚡ Ανοιχτά Δελτία", "⚙️ Διαχείριση Ιστορικού"], key="page_sel", label_visibility="collapsed")
 
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+if st.sidebar.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
+    new_bet_dialog()
+
+st.sidebar.markdown("<div class='sidebar-header'>🔍 ΑΝΑΖΗΤΗΣΗ</div>", unsafe_allow_html=True)
+search_term = st.sidebar.text_input("Ομάδα, Παίκτης, Αγορά...", placeholder="π.χ. Ολυμπιακός", label_visibility="collapsed")
+if search_term:
+    norm_search = normalize_greek(search_term)
+    search_df = df[
+        df['Event'].astype(str).apply(normalize_greek).str.contains(norm_search, case=False, na=False) | 
+        df['Market'].astype(str).apply(normalize_greek).str.contains(norm_search, case=False, na=False) | 
+        df['Legs_Data'].astype(str).apply(normalize_greek).str.contains(norm_search, case=False, na=False)
+    ]
+    if st.sidebar.button(f"👁️ Προβολή ({len(search_df)} δελτία)", use_container_width=True):
+        show_bets_dialog(f"🔍 Αποτελέσματα για: {search_term}", search_df, df)
+
+st.sidebar.markdown("<div class='sidebar-header'>⚡ ΓΡΗΓΟΡΗ ΜΑΤΙΑ</div>", unsafe_allow_html=True)
+pending_count = len(df[df['Status'] == '⚪ Εκκρεμές'])
+today_str = date.today()
+today_df = df[df['Date'] == today_str]
+today_prof = today_df['Profit'].sum() if not today_df.empty else 0.0
+prof_color = "#10b981" if today_prof >= 0 else "#ef4444"
+prof_sgn = "+" if today_prof > 0 else ""
+
+st.sidebar.markdown(f"""
+<div style='background-color: #16263b; padding: 10px; border-radius: 8px; border: 1px solid #1e3a5f; margin-bottom:10px;'>
+    <p style='margin:0; font-size:12px; color:#a8dadc;'>⏳ Εκκρεμή Δελτία</p>
+    <p style='margin:0; font-size:18px; font-weight:bold; color:#ffffff;'>{pending_count}</p>
+</div>
+<div style='background-color: #16263b; padding: 10px; border-radius: 8px; border: 1px solid #1e3a5f;'>
+    <p style='margin:0; font-size:12px; color:#a8dadc;'>Σημερινό Κέρδος</p>
+    <p style='margin:0; font-size:18px; font-weight:bold; color:{prof_color};'>{prof_sgn}{today_prof:.2f} €</p>
+</div>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown("<div class='sidebar-header'>💾 BACKUP</div>", unsafe_allow_html=True)
+csv_data = df.to_csv(index=False).encode('utf-8')
+st.sidebar.download_button(
+    label="📥 Κατέβασμα (Excel/CSV)",
+    data=csv_data,
+    file_name=f"betting_history_{date.today().strftime('%Y%m%d')}.csv",
+    mime="text/csv",
+    use_container_width=True
+)
+
 # ==========================================
 # MAIN APP BODY
 # ==========================================
-st.markdown('<div class="fab-marker"></div>', unsafe_allow_html=True)
-if st.button("➕ ΝΕΟ ΣΤΟΙΧΗΜΑ", type="primary", use_container_width=True):
-    new_bet_dialog()
+if st.session_state.get('auto_open_ticket') is not None:
+    aa = st.session_state['auto_open_ticket']
+    st.session_state['auto_open_ticket'] = None
+    show_ticket_modal(aa, df)
 
 # ----------------- ΣΕΛΙΔΕΣ -----------------
 if page == "🏠 Hub (Μήνες)":
@@ -1260,11 +1298,6 @@ if page == "🏠 Hub (Μήνες)":
     else:
         sel_m = st.session_state['selected_month']
         
-        if st.session_state.get('auto_open_ticket') is not None:
-            aa = st.session_state['auto_open_ticket']
-            st.session_state['auto_open_ticket'] = None
-            show_ticket_modal(aa, df)
-
         m_df = df[df['MonthGroup'] == sel_m].copy()
         m_br = custom_db.get("bankrolls", {}).get(sel_m, 0.0)
         m_unit = m_br / 20.0 if m_br > 0 else 0.0
@@ -1405,7 +1438,6 @@ if page == "🏠 Hub (Μήνες)":
             st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
             if col_h.button(f"Max Απόδοση\n{max_win_odds:.2f} 🎯", key="btn_max_odds", use_container_width=True): 
                 if max_win_odds_aa:
-                    st.session_state['redirect_to'] = "🗓️ Μηνιαία Αναφορά"
                     st.session_state['auto_open_ticket'] = int(max_win_odds_aa)
                     st.rerun()
 
@@ -1491,11 +1523,6 @@ elif page == "🌍 All-Time Στατιστικά":
     if df.empty:
         st.warning("Δεν βρέθηκαν στοιχήματα στο Ιστορικό.")
     else:
-        if st.session_state.get('auto_open_ticket') is not None:
-            aa = st.session_state['auto_open_ticket']
-            st.session_state['auto_open_ticket'] = None
-            show_ticket_modal(aa, df)
-
         completed_bets = df[df['Status'].isin(["🟢 Κερδισμένο", "🔴 Χαμένο", "🟡 Cash Out", "🔵 Ακυρωμένο"])].copy()
         
         # --- ALL-TIME PROGRESSION LOGIC ---
@@ -1617,7 +1644,6 @@ elif page == "🌍 All-Time Στατιστικά":
         st.markdown('<div class="marker-positive"></div>', unsafe_allow_html=True)
         if col_h.button(f"Max Απόδοση\n{max_win_odds:.2f} 🎯", key="btn_max_odds_at", use_container_width=True): 
             if max_win_odds_aa:
-                st.session_state['redirect_to'] = "🌍 All-Time Στατιστικά"
                 st.session_state['auto_open_ticket'] = int(max_win_odds_aa)
                 st.rerun()
 
